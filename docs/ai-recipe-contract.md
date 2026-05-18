@@ -73,6 +73,49 @@ Successful generation returns exactly three recipe proposals.
       "foodSafetyNotes": ["Cook eggs until set unless using pasteurized eggs."],
       "substitutions": ["Use another melting cheese if cheddar is unavailable."],
       "confidenceNotes": "Assumes the rice is already cooked."
+    },
+    {
+      "title": "Lemony Spinach Rice Bowl",
+      "summary": "A light rice bowl with warm spinach, cheddar, and a bright lemon finish.",
+      "usesFromAvailableItems": ["spinach", "rice", "cheddar"],
+      "itemsStillNeeded": ["lemon", "olive oil"],
+      "steps": [
+        "Warm cooked rice in a pan or microwave.",
+        "Wilt spinach with a small splash of water.",
+        "Fold spinach into the rice.",
+        "Top with cheddar and lemon juice."
+      ],
+      "prepTimeMinutes": 6,
+      "cookTimeMinutes": 8,
+      "servings": 2,
+      "difficulty": "easy",
+      "dietaryNotes": ["vegetarian"],
+      "allergyNotes": ["Contains dairy."],
+      "foodSafetyNotes": ["Reheat leftover rice until steaming hot."],
+      "substitutions": ["Use vinegar if lemon is unavailable."],
+      "confidenceNotes": "Assumes the rice was cooked and stored safely."
+    },
+    {
+      "title": "Cheddar Egg Spinach Cups",
+      "summary": "Simple baked egg cups using spinach and cheddar for a quick meal or snack.",
+      "usesFromAvailableItems": ["eggs", "spinach", "cheddar"],
+      "itemsStillNeeded": ["muffin tin", "black pepper"],
+      "steps": [
+        "Heat the oven to 180 C.",
+        "Grease a muffin tin lightly.",
+        "Divide chopped spinach and cheddar between cups.",
+        "Pour in beaten eggs.",
+        "Bake until the egg cups are set."
+      ],
+      "prepTimeMinutes": 10,
+      "cookTimeMinutes": 18,
+      "servings": 2,
+      "difficulty": "easy",
+      "dietaryNotes": ["vegetarian"],
+      "allergyNotes": ["Contains egg and dairy."],
+      "foodSafetyNotes": ["Cook eggs until fully set."],
+      "substitutions": ["Use a small baking dish if no muffin tin is available."],
+      "confidenceNotes": "Fits the craving if the user has oven access."
     }
   ],
   "source": "ai",
@@ -125,6 +168,7 @@ The server must validate both request and response data.
 - Clamp or reject numeric fields outside documented bounds.
 - Reject recipes that recommend using an ingredient listed in `constraints.avoid`.
 - Reject or rewrite AI output that claims a food is definitely safe, allergen-free, medically appropriate, or nutritionally guaranteed.
+- Detect clearly non-food requests before provider generation and return the food-only message instead of a recipe payload.
 - Never return raw provider error payloads to the browser.
 
 ## Failure Behavior
@@ -141,6 +185,19 @@ The API should return user-safe errors or clearly labeled fallback output.
 | Unsafe AI output | Reject the output and retry once or return a safe error/fallback. |
 
 Fallback output must set `source` and `provider` to `fallback`, include a `warning`, and match the same recipe field contract where possible.
+
+## Off-Topic Request Behavior
+
+Cookooi is for food recipe generation only. If the user asks for non-food content or clearly unrelated help, the API should return a short, friendly message instead of recipe JSON. The message should make clear that Cookooi can only create food recipes, and it may be lightly funny as long as it stays concise and respectful.
+
+Example:
+
+```json
+{
+  "error": "food_only",
+  "message": "I only cook up food recipes here. Give me ingredients and a craving, and I will get back to the kitchen."
+}
+```
 
 ## Food-Safety And Allergy Boundaries
 
@@ -166,6 +223,7 @@ The server prompt should instruct the model to:
 - Include concise food-safety and allergy notes where relevant.
 - Return only structured JSON matching the schema.
 - Avoid follow-up questions during generation.
+- For non-food requests, skip recipe generation and return only the food-only response.
 
 ## Terminology Requirements
 
