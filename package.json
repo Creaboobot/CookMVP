@@ -1,12 +1,17 @@
 {
-  "name": "cook-mvp",
+  "name": "cookooi",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.mjs"
+    "start": "wrangler dev",
+    "start:node": "node server.mjs",
+    "deploy": "wrangler deploy"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "^4.92.0"
   }
 }
