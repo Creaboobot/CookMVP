@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cookooi",
+  "compatibility_date": "2026-05-18",
+  "assets": {
+    "directory": "./public"
+  },
+  "dev": {
+    "ip": "127.0.0.1",
+    "port": 3004,
+    "local_protocol": "http"
+  }
+}

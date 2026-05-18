@@ -1,4 +1,4 @@
-const libraryKey = "fridge-ideas-library-v1";
+const libraryKey = "cookooi-library-v1";
 
 const pantryStaples = ["salt", "pepper", "olive oil", "water"];
 
@@ -13,7 +13,7 @@ const recipeBlueprints = [
   },
   {
     type: "Bowl",
-    title: "Fridge-clearing grain bowl",
+    title: "Use-what-you-have grain bowl",
     preferred: ["rice", "quinoa", "couscous", "chicken", "tofu", "beans", "spinach", "tomato", "avocado"],
     fallback: ["rice", "greens", "beans"],
     missing: ["rice", "lemon", "yogurt"],
@@ -29,7 +29,7 @@ const recipeBlueprints = [
   },
   {
     type: "Wrap",
-    title: "Loaded fridge wrap",
+    title: "Loaded available-ingredient wrap",
     preferred: ["tortilla", "bread", "chicken", "turkey", "egg", "lettuce", "tomato", "cheese", "hummus"],
     fallback: ["tortillas", "greens", "sauce"],
     missing: ["tortillas", "crunchy lettuce", "sauce"],

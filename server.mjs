@@ -4,8 +4,8 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
 
-const rootDir = fileURLToPath(new URL(".", import.meta.url));
-const port = Number(process.env.PORT || 3002);
+const rootDir = fileURLToPath(new URL("./public/", import.meta.url));
+const port = Number(process.env.PORT || 3004);
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -23,7 +23,7 @@ function send(res, status, body, headers = {}) {
 }
 
 function filePathForRequest(pathname) {
-  const requestedPath = pathname === "/" ? "/recipe.html" : pathname;
+  const requestedPath = pathname === "/" ? "/index.html" : pathname;
   const decoded = decodeURIComponent(requestedPath);
   const normalized = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
   return join(rootDir, normalized);
@@ -68,5 +68,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`CookMVP is running at http://127.0.0.1:${port}`);
+  console.log(`Cookooi is running at http://127.0.0.1:${port}`);
 });
