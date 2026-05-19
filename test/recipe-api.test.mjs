@@ -185,6 +185,27 @@ test("allows safety notes to mention avoided ingredients", async () => {
   assert.match(body.recipes[0].allergyNotes[0], /peanuts/);
 });
 
+test("filters avoided ingredients out of deterministic fallback recipes", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      ingredientsText: "peanuts, rice, spinach",
+      constraints: { avoid: "peanuts", servings: 3 },
+    }),
+    { COOKOOI_ENABLE_FALLBACK: "true" },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(body.recipes.length, 3);
+  for (const fallbackRecipe of body.recipes) {
+    assert.deepEqual(fallbackRecipe.usesFromAvailableItems, ["rice", "spinach"]);
+    assert.equal(fallbackRecipe.servings, 3);
+    assert.match(fallbackRecipe.allergyNotes.join(" "), /Avoid peanuts/);
+    assert.match(fallbackRecipe.allergyNotes.join(" "), /cross-contamination cannot be assessed/);
+  }
+});
+
 test("rejects unsupported equipment constraints", async () => {
   const response = await handleGenerateRecipeRequest(validRequest({ constraints: { equipment: ["campfire"] } }));
   const body = await response.json();

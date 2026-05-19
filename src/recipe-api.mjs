@@ -498,12 +498,14 @@ function recipeResponseSchema() {
 }
 
 function createFallbackResponse(request, model, warning) {
+  const avoidTerms = splitAvoidTerms(request.constraints.avoid);
   const ingredients = request.ingredientsText
     .split(/[\n,]+|\band\b/gi)
     .map(cleanText)
     .filter(Boolean)
+    .filter((ingredient) => !matchesAvoidedTerm(ingredient, avoidTerms))
     .slice(0, 5);
-  const used = ingredients.length ? ingredients : ["available items"];
+  const used = ingredients.length ? ingredients : ["available items that fit your constraints"];
   const servings = request.constraints.servings || 2;
 
   return {
@@ -616,6 +618,15 @@ function recipeSuggestsAvoidedTerm(recipe, avoidTerms) {
   }).toLowerCase();
 
   return avoidTerms.some((term) => term && searchableText.includes(term));
+}
+
+function matchesAvoidedTerm(value, avoidTerms) {
+  const normalizedValue = value.toLowerCase();
+  return avoidTerms.some((term) => {
+    const normalizedTerm = term.toLowerCase();
+    const variants = normalizedTerm.endsWith("s") ? [normalizedTerm, normalizedTerm.slice(0, -1)] : [normalizedTerm];
+    return variants.some((variant) => variant && normalizedValue.includes(variant));
+  });
 }
 
 function validString(value, maxLength) {
