@@ -59,3 +59,28 @@ test("normalizes older saved recipes for detail rendering", () => {
   assert.deepEqual(normalized.steps, []);
   assert.equal(recipeSourceLabel(normalized), "AI");
 });
+
+test("labels fallback recipes as non-AI output", () => {
+  const mapped = mapServerRecipe(
+    {
+      title: "Simple Pantry Plate",
+      summary: "A fallback recipe.",
+      usesFromAvailableItems: ["rice"],
+      itemsStillNeeded: ["seasoning"],
+      steps: ["Check items.", "Cook.", "Season.", "Serve."],
+      prepTimeMinutes: 5,
+      cookTimeMinutes: 10,
+      servings: 2,
+      difficulty: "easy",
+      dietaryNotes: [],
+      allergyNotes: ["Check labels."],
+      foodSafetyNotes: ["Cook thoroughly."],
+      substitutions: [],
+      confidenceNotes: "Fallback output.",
+    },
+    { source: "fallback", provider: "fallback", createdAt: "2026-05-19T16:00:00.000Z" },
+  );
+
+  assert.equal(mapped.type, "Fallback result");
+  assert.equal(recipeSourceLabel(mapped), "Fallback output, not AI-generated");
+});

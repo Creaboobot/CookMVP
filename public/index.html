@@ -33,6 +33,7 @@
               id="ingredients-input"
               name="ingredients"
               rows="5"
+              maxlength="1000"
               placeholder="Example: eggs, spinach, rice, cheddar, chicken, tomatoes"
               required
             ></textarea>
@@ -44,6 +45,7 @@
               id="craving-input"
               name="craving"
               type="text"
+              maxlength="200"
               placeholder="Example: cozy pasta, something spicy, quick breakfast"
               required
             />
@@ -58,6 +60,7 @@
                 id="avoid-input"
                 name="avoid"
                 rows="2"
+                maxlength="500"
                 placeholder="Example: peanuts, shellfish, cilantro"
               ></textarea>
             </label>
@@ -96,7 +99,13 @@
 
               <label class="field">
                 <span>Cuisine or flavor</span>
-                <input id="cuisine-input" name="cuisineOrFlavor" type="text" placeholder="Example: Thai, smoky, bright" />
+                <input
+                  id="cuisine-input"
+                  name="cuisineOrFlavor"
+                  type="text"
+                  maxlength="120"
+                  placeholder="Example: Thai, smoky, bright"
+                />
               </label>
             </div>
 
@@ -114,6 +123,7 @@
 
           <div class="form-actions">
             <button class="primary-button" id="generate-button" type="submit">Get three meal ideas</button>
+            <button class="secondary-button" id="retry-button" type="button" hidden>Retry</button>
             <button class="secondary-button" id="dictate-button" type="button">Dictate ingredients</button>
           </div>
           <p class="generation-status" id="generation-status" aria-live="polite"></p>

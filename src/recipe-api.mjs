@@ -1,6 +1,14 @@
 const MAX_BODY_BYTES = 20_000;
+const MAX_INGREDIENTS_TEXT_CHARS = 1000;
+const MAX_CRAVING_CHARS = 200;
+const MAX_AVOID_CHARS = 500;
+const MAX_CUISINE_OR_FLAVOR_CHARS = 120;
+const MAX_USER_PROMPT_CHARS = 1600;
+const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 20;
+const DEFAULT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const DEFAULT_MODEL = "gpt-5.4-mini";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const requestRateBuckets = new Map();
 
 const allowedDiets = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "other"]);
 const allowedEquipment = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
@@ -91,6 +99,18 @@ export async function handleGenerateRecipeRequest(request, env = {}, options = {
     );
   }
 
+  const rateLimit = checkRateLimit(request, env, options);
+  if (!rateLimit.ok) {
+    return jsonResponse(
+      {
+        error: "rate_limited",
+        message: `Too many recipe requests. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
+      },
+      429,
+      { "retry-after": String(rateLimit.retryAfterSeconds) },
+    );
+  }
+
   const apiKey = env.OPENAI_API_KEY;
   const model = env.OPENAI_MODEL || DEFAULT_MODEL;
   const fallbackEnabled = env.COOKOOI_ENABLE_FALLBACK === "true";
@@ -164,16 +184,16 @@ function validateRecipeRequest(payload) {
   if (!ingredientsText) {
     return invalid("Add ingredients available before generating recipes.");
   }
-  if (ingredientsText.length > 1000) {
-    return invalid("Ingredients text must be 1000 characters or fewer.");
+  if (ingredientsText.length > MAX_INGREDIENTS_TEXT_CHARS) {
+    return invalid(`Ingredients text must be ${MAX_INGREDIENTS_TEXT_CHARS} characters or fewer.`);
   }
 
   const craving = cleanText(payload.craving);
   if (!craving) {
     return invalid("Add a craving or goal before generating recipes.");
   }
-  if (craving.length > 200) {
-    return invalid("Craving must be 200 characters or fewer.");
+  if (craving.length > MAX_CRAVING_CHARS) {
+    return invalid(`Craving must be ${MAX_CRAVING_CHARS} characters or fewer.`);
   }
 
   const constraints = payload.constraints === undefined ? {} : payload.constraints;
@@ -196,8 +216,8 @@ function validateRecipeRequest(payload) {
       return invalid("Avoidances must be text.");
     }
     normalizedConstraints.avoid = cleanText(constraints.avoid);
-    if (normalizedConstraints.avoid.length > 500) {
-      return invalid("Avoidances must be 500 characters or fewer.");
+    if (normalizedConstraints.avoid.length > MAX_AVOID_CHARS) {
+      return invalid(`Avoidances must be ${MAX_AVOID_CHARS} characters or fewer.`);
     }
   }
 
@@ -231,8 +251,8 @@ function validateRecipeRequest(payload) {
       return invalid("Cuisine or flavor must be text.");
     }
     normalizedConstraints.cuisineOrFlavor = cleanText(constraints.cuisineOrFlavor);
-    if (normalizedConstraints.cuisineOrFlavor.length > 120) {
-      return invalid("Cuisine or flavor must be 120 characters or fewer.");
+    if (normalizedConstraints.cuisineOrFlavor.length > MAX_CUISINE_OR_FLAVOR_CHARS) {
+      return invalid(`Cuisine or flavor must be ${MAX_CUISINE_OR_FLAVOR_CHARS} characters or fewer.`);
     }
   }
 
@@ -252,6 +272,13 @@ function validateRecipeRequest(payload) {
     normalizedConstraints.equipment = [...new Set(equipment)];
   }
 
+  const promptCharacters = countUserPromptCharacters({ ingredientsText, craving, constraints: normalizedConstraints });
+  if (promptCharacters > MAX_USER_PROMPT_CHARS) {
+    return invalid(
+      `Your request is too long for this test build. Shorten available items, craving, or preferences to ${MAX_USER_PROMPT_CHARS} characters total.`,
+    );
+  }
+
   return {
     ok: true,
     value: {
@@ -260,6 +287,68 @@ function validateRecipeRequest(payload) {
       constraints: normalizedConstraints,
     },
   };
+}
+
+function checkRateLimit(request, env = {}, options = {}) {
+  const maxRequests = positiveConfigInteger(env.COOKOOI_RATE_LIMIT_MAX_REQUESTS, DEFAULT_RATE_LIMIT_MAX_REQUESTS);
+  const windowMs = positiveConfigInteger(env.COOKOOI_RATE_LIMIT_WINDOW_MS, DEFAULT_RATE_LIMIT_WINDOW_MS);
+  if (!maxRequests || !windowMs) {
+    return { ok: true };
+  }
+
+  const now = typeof options.now === "function" ? options.now() : Date.now();
+  const store = options.rateLimitStore || requestRateBuckets;
+  const key = rateLimitKey(request);
+  const current = store.get(key);
+  const bucket = current && current.expiresAt > now ? current : { count: 0, expiresAt: now + windowMs };
+
+  if (bucket.count >= maxRequests) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((bucket.expiresAt - now) / 1000)),
+    };
+  }
+
+  bucket.count += 1;
+  store.set(key, bucket);
+
+  if (store.size > 1000) {
+    for (const [bucketKey, value] of store) {
+      if (value.expiresAt <= now) {
+        store.delete(bucketKey);
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
+function rateLimitKey(request) {
+  const sessionId = cleanText(request.headers.get("x-cookooi-session"));
+  if (sessionId) {
+    return `session:${sessionId.slice(0, 80)}`;
+  }
+
+  const forwardedIp = cleanText(request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "")
+    .split(",")[0]
+    .trim();
+  return forwardedIp ? `ip:${forwardedIp}` : "anonymous";
+}
+
+function countUserPromptCharacters(request) {
+  return [
+    request.ingredientsText,
+    request.craving,
+    request.constraints.avoid,
+    request.constraints.diet,
+    String(request.constraints.servings || ""),
+    String(request.constraints.maxTotalTimeMinutes || ""),
+    request.constraints.cuisineOrFlavor,
+    ...(request.constraints.equipment || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .length;
 }
 
 async function generateWithOpenAI(recipeRequest, { apiKey, model, fetcher }) {
@@ -646,6 +735,11 @@ function validStringArray(value, maxItems, maxLength) {
 
 function validInteger(value, min, max) {
   return Number.isInteger(value) && value >= min && value <= max ? value : null;
+}
+
+function positiveConfigInteger(value, fallback) {
+  const parsed = Number.parseInt(value ?? fallback, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 }
 
 function cleanText(value) {

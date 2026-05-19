@@ -69,7 +69,7 @@ export function recipeMetaItems(recipe) {
 
 export function recipeSourceLabel(recipe) {
   if (recipe.source === "fallback") {
-    return "Fallback output";
+    return "Fallback output, not AI-generated";
   }
 
   return [recipe.provider || "AI", recipe.model].filter(Boolean).join(" ");

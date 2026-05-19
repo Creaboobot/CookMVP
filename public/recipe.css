@@ -305,6 +305,11 @@ h1 {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  transition: opacity 160ms ease;
+}
+
+.proposal-grid[aria-busy="true"] {
+  opacity: 0.72;
 }
 
 .recipe-card,

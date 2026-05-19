@@ -37,6 +37,34 @@ test("rejects invalid payloads", async () => {
   assert.equal(body.error, "invalid_request");
 });
 
+test("rejects overlong available item input", async () => {
+  const response = await handleGenerateRecipeRequest(validRequest({ ingredientsText: "rice ".repeat(260) }));
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /1000 characters or fewer/);
+});
+
+test("rejects requests that exceed the prompt budget", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      ingredientsText: "rice ".repeat(200),
+      craving: "d".repeat(200),
+      constraints: {
+        avoid: "p".repeat(500),
+        cuisineOrFlavor: "c".repeat(120),
+      },
+    }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /too long/i);
+  assert.match(body.message, /shorten/i);
+});
+
 test("returns food-only response for clearly off-topic requests", async () => {
   const response = await handleGenerateRecipeRequest(
     new Request("http://cookooi.test/api/recipes/generate", {
@@ -77,6 +105,43 @@ test("maps provider errors to user-safe responses", async () => {
   assert.equal(body.error, "provider_rate_limited");
   assert.match(body.message, /try again/i);
   assert.doesNotMatch(JSON.stringify(body), /secret provider detail/);
+});
+
+test("maps provider timeouts to retryable user-safe responses", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 504);
+  assert.equal(body.error, "provider_timeout");
+  assert.match(body.message, /try again/i);
+});
+
+test("rate limits repeated requests from the same test session", async () => {
+  const rateLimitStore = new Map();
+  const env = {
+    COOKOOI_ENABLE_FALLBACK: "true",
+    COOKOOI_RATE_LIMIT_MAX_REQUESTS: "2",
+    COOKOOI_RATE_LIMIT_WINDOW_MS: "60000",
+  };
+  const options = { rateLimitStore, now: () => 1000 };
+
+  assert.equal((await handleGenerateRecipeRequest(validRequest({}, { "x-cookooi-session": "test-session" }), env, options)).status, 200);
+  assert.equal((await handleGenerateRecipeRequest(validRequest({}, { "x-cookooi-session": "test-session" }), env, options)).status, 200);
+
+  const response = await handleGenerateRecipeRequest(validRequest({}, { "x-cookooi-session": "test-session" }), env, options);
+  const body = await response.json();
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "60");
+  assert.equal(body.error, "rate_limited");
 });
 
 test("returns valid structured recipes from provider output", async () => {
@@ -234,10 +299,10 @@ test("rejects provider output that exceeds requested available time", async () =
   assert.equal(body.error, "invalid_ai_output");
 });
 
-function validRequest(overrides = {}) {
+function validRequest(overrides = {}, headers = {}) {
   return new Request("http://cookooi.test/api/recipes/generate", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify({
       ingredientsText: "eggs, spinach, rice, cheddar",
       craving: "quick dinner",
