@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          find public src test -type f \( -name '*.js' -o -name '*.mjs' \) -print0 |
+            xargs -0 -r -n 1 node --check
+
+      - name: Validate Worker bundle
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          WRANGLER_WRITE_LOGS: "false"
+        run: npx wrangler deploy --dry-run
