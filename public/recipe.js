@@ -1,4 +1,10 @@
 import { buildRecipeRequestPayload } from "./recipe-payload.js";
+import {
+  mapServerRecipe,
+  normalizeRecipeForDisplay,
+  recipeMetaItems,
+  recipeSourceLabel,
+} from "./recipe-display.js";
 
 const libraryKey = "cookooi-library-v1";
 
@@ -34,7 +40,22 @@ function saveLibrary(recipes) {
   localStorage.setItem(libraryKey, JSON.stringify(recipes));
 }
 
-function listItems(container, items) {
+function listItems(container, items, emptyText) {
+  const visibleItems = Array.isArray(items) ? items : [];
+
+  container.replaceChildren(
+    ...(visibleItems.length ? visibleItems : [emptyText]).map((item) => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      if (!visibleItems.length) {
+        li.className = "empty-list-item";
+      }
+      return li;
+    }),
+  );
+}
+
+function listMetaItems(container, items) {
   container.replaceChildren(
     ...items.map((item) => {
       const li = document.createElement("li");
@@ -44,7 +65,21 @@ function listItems(container, items) {
   );
 }
 
-function renderProposal(recipe) {
+function renderRecipeDetails(root, recipe) {
+  listMetaItems(root.querySelector(".recipe-meta"), recipeMetaItems(recipe));
+  listItems(root.querySelector(".used-list"), recipe.usesFromAvailableItems, "No available items listed.");
+  listItems(root.querySelector(".missing-list"), recipe.itemsStillNeeded, "No extra items listed.");
+  listItems(root.querySelector(".steps-list"), recipe.steps, "No preparation steps listed.");
+  listItems(root.querySelector(".substitutions-list"), recipe.substitutions, "No substitutions listed.");
+  listItems(root.querySelector(".dietary-list"), recipe.dietaryNotes, "No dietary notes provided.");
+  listItems(root.querySelector(".allergy-list"), recipe.allergyNotes, "No allergy notes provided.");
+  listItems(root.querySelector(".safety-list"), recipe.foodSafetyNotes, "No food-safety notes provided.");
+  root.querySelector(".confidence-note").textContent = recipe.confidenceNotes || "No confidence note provided.";
+  root.querySelector(".recipe-source").textContent = recipeSourceLabel(recipe);
+}
+
+function renderProposal(recipeData) {
+  const recipe = normalizeRecipeForDisplay(recipeData);
   const fragment = els.proposalTemplate.content.cloneNode(true);
   const card = fragment.querySelector(".recipe-card");
   const saveButton = fragment.querySelector(".save-button");
@@ -52,8 +87,7 @@ function renderProposal(recipe) {
   fragment.querySelector(".recipe-type").textContent = recipe.type;
   fragment.querySelector("h3").textContent = recipe.title;
   fragment.querySelector(".recipe-summary").textContent = recipe.summary;
-  listItems(fragment.querySelector(".used-list"), recipe.used);
-  listItems(fragment.querySelector(".missing-list"), recipe.missing);
+  renderRecipeDetails(fragment, recipe);
 
   saveButton.addEventListener("click", () => {
     const library = loadLibrary();
@@ -67,23 +101,6 @@ function renderProposal(recipe) {
   });
 
   return fragment;
-}
-
-function mapServerRecipe(recipe, generation, index) {
-  const createdAt = generation.createdAt || new Date().toISOString();
-
-  return {
-    id: `${createdAt}-${index}`,
-    type: generation.source === "fallback" ? "Fallback result" : `${recipe.difficulty} recipe`,
-    title: recipe.title,
-    summary: recipe.summary,
-    used: recipe.usesFromAvailableItems,
-    missing: recipe.itemsStillNeeded,
-    source: generation.source || "ai",
-    provider: generation.provider,
-    model: generation.model,
-    createdAt,
-  };
 }
 
 function setGenerationStatus(message, tone = "neutral") {
@@ -154,26 +171,35 @@ function renderLibrary() {
 
   els.libraryList.replaceChildren(
     ...library.map((recipe) => {
+      const displayRecipe = normalizeRecipeForDisplay(recipe);
       const article = document.createElement("article");
       const details = document.createElement("div");
       const type = document.createElement("p");
       const title = document.createElement("h3");
       const summary = document.createElement("span");
+      const detailToggle = document.createElement("details");
+      const detailSummary = document.createElement("summary");
+      const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
       const removeButton = document.createElement("button");
 
       article.className = "library-item";
-      type.textContent = recipe.type;
-      title.textContent = recipe.title;
-      summary.textContent = recipe.summary;
+      type.textContent = displayRecipe.type;
+      title.textContent = displayRecipe.title;
+      summary.textContent = displayRecipe.summary;
+      detailToggle.className = "saved-recipe-details";
+      detailSummary.textContent = "Recipe details";
+      renderRecipeDetails(detailBody, displayRecipe);
       removeButton.className = "text-button danger";
       removeButton.type = "button";
       removeButton.textContent = "Remove";
       removeButton.addEventListener("click", () => {
-        saveLibrary(loadLibrary().filter((savedRecipe) => savedRecipe.id !== recipe.id));
+        saveLibrary(loadLibrary().filter((savedRecipe) => savedRecipe.id !== displayRecipe.id));
         renderLibrary();
       });
 
       details.append(type, title, summary);
+      detailToggle.append(detailSummary, detailBody);
+      details.append(detailToggle);
       article.append(details, removeButton);
       return article;
     }),
