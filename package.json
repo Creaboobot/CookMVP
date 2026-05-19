@@ -6,7 +6,8 @@
   "scripts": {
     "start": "wrangler dev",
     "start:node": "node server.mjs",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22"
