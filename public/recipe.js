@@ -7,6 +7,7 @@ import {
 } from "./recipe-display.js";
 
 const libraryKey = "cookooi-library-v1";
+const generationTimeoutMs = 30_000;
 
 const els = {
   form: document.querySelector("#recipe-form"),
@@ -19,6 +20,7 @@ const els = {
   cuisineOrFlavor: document.querySelector("#cuisine-input"),
   equipment: Array.from(document.querySelectorAll("input[name='equipment']")),
   generateButton: document.querySelector("#generate-button"),
+  retryButton: document.querySelector("#retry-button"),
   generationStatus: document.querySelector("#generation-status"),
   proposalGrid: document.querySelector("#proposal-grid"),
   proposalTemplate: document.querySelector("#proposal-template"),
@@ -31,6 +33,8 @@ const els = {
 
 let activeProposals = [];
 let recognition = null;
+let generationInFlight = false;
+let lastSubmittedPayload = null;
 
 function loadLibrary() {
   return JSON.parse(localStorage.getItem(libraryKey) || "[]");
@@ -108,13 +112,22 @@ function setGenerationStatus(message, tone = "neutral") {
   els.generationStatus.dataset.tone = tone;
 }
 
-function setGenerating(isGenerating) {
-  els.generateButton.disabled = isGenerating;
-  els.generateButton.textContent = isGenerating ? "Generating..." : "Get three meal ideas";
+function setRetryVisible(isVisible) {
+  els.retryButton.hidden = !isVisible;
+  els.retryButton.disabled = !isVisible || generationInFlight;
 }
 
-async function requestRecipeGeneration() {
-  const payload = buildRecipeRequestPayload({
+function setGenerating(isGenerating) {
+  generationInFlight = isGenerating;
+  els.form.setAttribute("aria-busy", String(isGenerating));
+  els.proposalGrid.setAttribute("aria-busy", String(isGenerating));
+  els.generateButton.disabled = isGenerating;
+  els.generateButton.textContent = isGenerating ? "Generating..." : "Get three meal ideas";
+  els.retryButton.disabled = isGenerating || !lastSubmittedPayload;
+}
+
+function buildCurrentRecipePayload() {
+  return buildRecipeRequestPayload({
     ingredientsText: els.ingredients.value,
     craving: els.craving.value,
     avoid: els.avoid.value,
@@ -124,22 +137,82 @@ async function requestRecipeGeneration() {
     cuisineOrFlavor: els.cuisineOrFlavor.value,
     equipment: els.equipment.filter((input) => input.checked).map((input) => input.value),
   });
+}
 
-  const response = await fetch("/api/recipes/generate", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+async function requestRecipeGeneration(payload) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), generationTimeoutMs);
+  let response;
+
+  try {
+    response = await fetch("/api/recipes/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw generationError(
+        "client_timeout",
+        "Recipe generation took too long. Retry, or shorten the request before trying again.",
+        true,
+      );
+    }
+    throw generationError("network_error", "Cookooi could not reach the recipe service. Please retry.", true);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(body.message || "Cookooi could not generate recipes right now. Please try again.");
+    throw generationError(
+      body.error || "request_failed",
+      friendlyGenerationMessage(body, response.status),
+      isRetryableGenerationError(body.error, response.status),
+    );
   }
   if (!Array.isArray(body.recipes) || body.recipes.length !== 3) {
-    throw new Error("Cookooi returned an unexpected recipe response.");
+    throw generationError(
+      "unexpected_response",
+      "Cookooi returned an unexpected recipe response. Retry for a fresh set.",
+      true,
+    );
   }
 
   return body;
+}
+
+function generationError(code, message, retryable) {
+  const error = new Error(message);
+  error.code = code;
+  error.retryable = retryable;
+  return error;
+}
+
+function friendlyGenerationMessage(body, status) {
+  const messages = {
+    food_only: body.message,
+    invalid_request: body.message,
+    invalid_json: "Cookooi could not read the request. Refresh the page and try again.",
+    provider_unavailable: "Recipe generation is not configured right now. You can retry later.",
+    provider_rate_limited: "Cookooi is handling a lot of recipe requests. Please retry shortly.",
+    provider_timeout: "Recipe generation took too long. Retry, or shorten the request before trying again.",
+    invalid_ai_output: "Cookooi received a recipe response it could not trust. Retry for a fresh set.",
+    provider_error: "Cookooi could not generate recipes right now. Please retry.",
+    rate_limited: body.message,
+  };
+
+  return (
+    messages[body.error] ||
+    body.message ||
+    (status >= 500 ? "Cookooi could not generate recipes right now. Please retry." : "Check the request and try again.")
+  );
+}
+
+function isRetryableGenerationError(code, status) {
+  return !["food_only", "invalid_request"].includes(code) && status !== 400;
 }
 
 function renderProposals(proposals) {
@@ -206,6 +279,39 @@ function renderLibrary() {
   );
 }
 
+async function runGeneration(payload, statusMessage = "Generating three Cookooi recipe proposals...") {
+  if (generationInFlight) {
+    return;
+  }
+
+  setRetryVisible(false);
+  setGenerating(true);
+  setGenerationStatus(statusMessage, "neutral");
+
+  try {
+    const generation = await requestRecipeGeneration(payload);
+    activeProposals = generation.recipes.map((recipe, index) => mapServerRecipe(recipe, generation, index));
+    renderProposals(activeProposals);
+    if (generation.source === "fallback") {
+      setGenerationStatus(
+        generation.warning
+          ? `Fallback results shown: ${generation.warning}`
+          : "Fallback results shown because AI generation is unavailable.",
+        "warning",
+      );
+    } else {
+      setGenerationStatus("Three server-generated recipes are ready.", "success");
+    }
+  } catch (error) {
+    activeProposals = [];
+    renderProposals(activeProposals);
+    setGenerationStatus(error.message, "error");
+    setRetryVisible(Boolean(error.retryable && lastSubmittedPayload));
+  } finally {
+    setGenerating(false);
+  }
+}
+
 function setupVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -244,30 +350,20 @@ function setupVoiceInput() {
 els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  setGenerating(true);
-  setGenerationStatus("Generating three Cookooi recipe proposals...", "neutral");
-
-  try {
-    const generation = await requestRecipeGeneration();
-    activeProposals = generation.recipes.map((recipe, index) => mapServerRecipe(recipe, generation, index));
-    renderProposals(activeProposals);
-    if (generation.source === "fallback") {
-      setGenerationStatus(
-        generation.warning
-          ? `Fallback results shown: ${generation.warning}`
-          : "Fallback results shown because AI generation is unavailable.",
-        "warning",
-      );
-    } else {
-      setGenerationStatus("Three server-generated recipes are ready.", "success");
-    }
-  } catch (error) {
-    activeProposals = [];
-    renderProposals(activeProposals);
-    setGenerationStatus(error.message, "error");
-  } finally {
-    setGenerating(false);
+  if (generationInFlight) {
+    return;
   }
+
+  lastSubmittedPayload = buildCurrentRecipePayload();
+  await runGeneration(lastSubmittedPayload);
+});
+
+els.retryButton.addEventListener("click", async () => {
+  if (!lastSubmittedPayload || generationInFlight) {
+    return;
+  }
+
+  await runGeneration(lastSubmittedPayload, "Retrying recipe generation...");
 });
 
 els.dictateButton.addEventListener("click", () => {
@@ -277,6 +373,7 @@ els.dictateButton.addEventListener("click", () => {
 els.clearResultsButton.addEventListener("click", () => {
   activeProposals = [];
   renderProposals(activeProposals);
+  setRetryVisible(false);
   setGenerationStatus("", "neutral");
 });
 
