@@ -1,54 +1,11 @@
 const libraryKey = "cookooi-library-v1";
 
-const pantryStaples = ["salt", "pepper", "olive oil", "water"];
-
-const recipeBlueprints = [
-  {
-    type: "Fast skillet",
-    title: "Craveable skillet hash",
-    preferred: ["potato", "sweet potato", "onion", "pepper", "egg", "cheese", "sausage", "chicken"],
-    fallback: ["onion", "garlic", "egg"],
-    missing: ["onion", "eggs", "fresh herbs"],
-    summary: (craving) => `A one-pan option with crispy edges and a ${craving || "comfort-food"} feel.`,
-  },
-  {
-    type: "Bowl",
-    title: "Use-what-you-have grain bowl",
-    preferred: ["rice", "quinoa", "couscous", "chicken", "tofu", "beans", "spinach", "tomato", "avocado"],
-    fallback: ["rice", "greens", "beans"],
-    missing: ["rice", "lemon", "yogurt"],
-    summary: (craving) => `A flexible bowl that layers your ingredients with a bright ${craving || "fresh"} finish.`,
-  },
-  {
-    type: "Pasta or noodles",
-    title: "Cozy pantry pasta",
-    preferred: ["pasta", "noodles", "tomato", "cheese", "spinach", "mushroom", "chicken", "cream"],
-    fallback: ["pasta", "garlic", "parmesan"],
-    missing: ["pasta", "parmesan", "garlic"],
-    summary: (craving) => `A saucy pasta-style meal tuned for a ${craving || "cozy"} craving.`,
-  },
-  {
-    type: "Wrap",
-    title: "Loaded available-ingredient wrap",
-    preferred: ["tortilla", "bread", "chicken", "turkey", "egg", "lettuce", "tomato", "cheese", "hummus"],
-    fallback: ["tortillas", "greens", "sauce"],
-    missing: ["tortillas", "crunchy lettuce", "sauce"],
-    summary: (craving) => `A handheld meal with crisp, creamy, and ${craving || "satisfying"} bites.`,
-  },
-  {
-    type: "Soup",
-    title: "Simple simmer soup",
-    preferred: ["broth", "carrot", "celery", "onion", "chicken", "beans", "noodles", "rice", "tomato"],
-    fallback: ["broth", "onion", "carrot"],
-    missing: ["broth", "carrots", "crusty bread"],
-    summary: (craving) => `A low-effort soup for when you want something ${craving || "warming"}.`,
-  },
-];
-
 const els = {
   form: document.querySelector("#recipe-form"),
   ingredients: document.querySelector("#ingredients-input"),
   craving: document.querySelector("#craving-input"),
+  generateButton: document.querySelector("#generate-button"),
+  generationStatus: document.querySelector("#generation-status"),
   proposalGrid: document.querySelector("#proposal-grid"),
   proposalTemplate: document.querySelector("#proposal-template"),
   libraryList: document.querySelector("#library-list"),
@@ -60,67 +17,6 @@ const els = {
 
 let activeProposals = [];
 let recognition = null;
-
-function normalizeToken(value) {
-  return value.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-}
-
-function parseIngredients(value) {
-  return Array.from(
-    new Set(
-      value
-        .split(/[\n,]+|\band\b/gi)
-        .map((item) => normalizeToken(item))
-        .filter(Boolean),
-    ),
-  );
-}
-
-function ingredientMatches(ingredient, target) {
-  return ingredient.includes(target) || target.includes(ingredient);
-}
-
-function availableMatches(ingredients, targets) {
-  return targets.filter((target) => ingredients.some((ingredient) => ingredientMatches(ingredient, target)));
-}
-
-function missingItems(availableIngredients, candidates, usedItems) {
-  const missing = candidates.filter(
-    (item) => !availableIngredients.some((ingredient) => ingredientMatches(ingredient, item)) && !usedItems.includes(item),
-  );
-
-  return missing.length ? missing.slice(0, 3) : ["None needed"];
-}
-
-function scoreBlueprint(blueprint, ingredients, craving) {
-  const usedCount = availableMatches(ingredients, blueprint.preferred).length;
-  const cravingWords = normalizeToken(craving).split(/\s+/).filter(Boolean);
-  const cravingBonus = cravingWords.some((word) => `${blueprint.type} ${blueprint.title}`.toLowerCase().includes(word)) ? 2 : 0;
-  return usedCount * 3 + cravingBonus;
-}
-
-function generateProposals(userIngredients, craving) {
-  const availableIngredients = [...userIngredients, ...pantryStaples];
-  const sortedBlueprints = [...recipeBlueprints]
-    .sort((left, right) => scoreBlueprint(right, availableIngredients, craving) - scoreBlueprint(left, availableIngredients, craving))
-    .slice(0, 3);
-
-  return sortedBlueprints.map((blueprint, index) => {
-    const used = availableMatches(userIngredients, blueprint.preferred);
-    const displayedUsed = used.length ? used : userIngredients.slice(0, 3);
-    const missing = missingItems(availableIngredients, [...blueprint.missing, ...blueprint.fallback], displayedUsed);
-
-    return {
-      id: `${Date.now()}-${index}`,
-      type: blueprint.type,
-      title: blueprint.title,
-      summary: blueprint.summary(craving.trim()),
-      used: displayedUsed,
-      missing,
-      createdAt: new Date().toISOString(),
-    };
-  });
-}
 
 function loadLibrary() {
   return JSON.parse(localStorage.getItem(libraryKey) || "[]");
@@ -163,6 +59,55 @@ function renderProposal(recipe) {
   });
 
   return fragment;
+}
+
+function mapServerRecipe(recipe, generation, index) {
+  const createdAt = generation.createdAt || new Date().toISOString();
+
+  return {
+    id: `${createdAt}-${index}`,
+    type: generation.source === "fallback" ? "Fallback result" : `${recipe.difficulty} recipe`,
+    title: recipe.title,
+    summary: recipe.summary,
+    used: recipe.usesFromAvailableItems,
+    missing: recipe.itemsStillNeeded,
+    source: generation.source || "ai",
+    provider: generation.provider,
+    model: generation.model,
+    createdAt,
+  };
+}
+
+function setGenerationStatus(message, tone = "neutral") {
+  els.generationStatus.textContent = message;
+  els.generationStatus.dataset.tone = tone;
+}
+
+function setGenerating(isGenerating) {
+  els.generateButton.disabled = isGenerating;
+  els.generateButton.textContent = isGenerating ? "Generating..." : "Get three meal ideas";
+}
+
+async function requestRecipeGeneration() {
+  const response = await fetch("/api/recipes/generate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ingredientsText: els.ingredients.value,
+      craving: els.craving.value,
+      constraints: {},
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body.message || "Cookooi could not generate recipes right now. Please try again.");
+  }
+  if (!Array.isArray(body.recipes) || body.recipes.length !== 3) {
+    throw new Error("Cookooi returned an unexpected recipe response.");
+  }
+
+  return body;
 }
 
 function renderProposals(proposals) {
@@ -255,11 +200,33 @@ function setupVoiceInput() {
   els.voiceStatus.textContent = "Voice input ready.";
 }
 
-els.form.addEventListener("submit", (event) => {
+els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const ingredients = parseIngredients(els.ingredients.value);
-  activeProposals = generateProposals(ingredients, els.craving.value);
-  renderProposals(activeProposals);
+
+  setGenerating(true);
+  setGenerationStatus("Generating three Cookooi recipe proposals...", "neutral");
+
+  try {
+    const generation = await requestRecipeGeneration();
+    activeProposals = generation.recipes.map((recipe, index) => mapServerRecipe(recipe, generation, index));
+    renderProposals(activeProposals);
+    if (generation.source === "fallback") {
+      setGenerationStatus(
+        generation.warning
+          ? `Fallback results shown: ${generation.warning}`
+          : "Fallback results shown because AI generation is unavailable.",
+        "warning",
+      );
+    } else {
+      setGenerationStatus("Three server-generated recipes are ready.", "success");
+    }
+  } catch (error) {
+    activeProposals = [];
+    renderProposals(activeProposals);
+    setGenerationStatus(error.message, "error");
+  } finally {
+    setGenerating(false);
+  }
 });
 
 els.dictateButton.addEventListener("click", () => {
@@ -269,6 +236,7 @@ els.dictateButton.addEventListener("click", () => {
 els.clearResultsButton.addEventListener("click", () => {
   activeProposals = [];
   renderProposals(activeProposals);
+  setGenerationStatus("", "neutral");
 });
 
 els.clearLibraryButton.addEventListener("click", () => {

@@ -139,6 +139,39 @@ h1 {
   padding: 8px 12px;
 }
 
+.generation-status {
+  border-radius: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 24px;
+  padding: 0;
+}
+
+.generation-status:not(:empty) {
+  border: 1px solid #fdba74;
+  padding: 10px 12px;
+}
+
+.generation-status[data-tone="success"] {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: var(--primary-dark);
+}
+
+.generation-status[data-tone="warning"] {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.generation-status[data-tone="error"] {
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: var(--danger);
+}
+
 .recipe-form {
   display: grid;
   gap: 18px;
