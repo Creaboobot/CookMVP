@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
+import { handleGenerateRecipeRequest } from "./src/recipe-api.mjs";
 
 const rootDir = fileURLToPath(new URL("./public/", import.meta.url));
 const port = Number(process.env.PORT || 3004);
@@ -30,12 +31,25 @@ function filePathForRequest(pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+  if (url.pathname === "/api/recipes/generate") {
+    const body = await readRequestBody(req);
+    const request = new Request(url, {
+      method: req.method,
+      headers: req.headers,
+      body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
+    });
+    const response = await handleGenerateRecipeRequest(request, process.env);
+    await sendWebResponse(res, response);
+    return;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     send(res, 405, "Method not allowed", { "content-type": "text/plain; charset=utf-8" });
     return;
   }
 
-  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   const filePath = filePathForRequest(url.pathname);
 
   if (!filePath.startsWith(rootDir)) {
@@ -70,3 +84,17 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`Cookooi is running at http://127.0.0.1:${port}`);
 });
+
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("error", reject);
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+async function sendWebResponse(res, response) {
+  res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+  res.end(Buffer.from(await response.arrayBuffer()));
+}

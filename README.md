@@ -29,3 +29,19 @@ npm run start:node
 ```
 
 The app is static and stores saved recipes in the browser's local storage. No AI behavior is changed by this runtime task.
+
+## Recipe generation API
+
+The server exposes:
+
+```text
+POST /api/recipes/generate
+```
+
+The endpoint reads provider configuration from the server environment only:
+
+- `OPENAI_API_KEY`: required for OpenAI-backed recipe generation.
+- `OPENAI_MODEL`: optional, defaults to `gpt-5.4-mini`.
+- `COOKOOI_ENABLE_FALLBACK=true`: optional testing mode for deterministic fallback output when OpenAI is unavailable.
+
+Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
