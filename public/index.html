@@ -50,9 +50,10 @@
           </label>
 
           <div class="form-actions">
-            <button class="primary-button" type="submit">Get three meal ideas</button>
+            <button class="primary-button" id="generate-button" type="submit">Get three meal ideas</button>
             <button class="secondary-button" id="dictate-button" type="button">Dictate ingredients</button>
           </div>
+          <p class="generation-status" id="generation-status" aria-live="polite"></p>
         </form>
       </section>
 
@@ -96,11 +97,11 @@
         <p class="recipe-summary"></p>
         <div class="detail-grid">
           <div>
-            <h4>Uses from what you have</h4>
+            <h4>Items used</h4>
             <ul class="used-list"></ul>
           </div>
           <div>
-            <h4>Missing groceries</h4>
+            <h4>Items still needed</h4>
             <ul class="missing-list"></ul>
           </div>
         </div>
