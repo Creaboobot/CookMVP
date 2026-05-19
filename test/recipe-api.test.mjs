@@ -102,6 +102,46 @@ test("returns valid structured recipes from provider output", async () => {
   assert.equal(body.recipes[0].servings, 2);
 });
 
+test("sends validated user constraints to the provider", async () => {
+  let providerRequest;
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      constraints: {
+        avoid: " peanuts, shellfish ",
+        diet: "vegetarian",
+        servings: 4,
+        maxTotalTimeMinutes: 30,
+        cuisineOrFlavor: "bright Thai",
+        equipment: ["oven", "air fryer", "oven"],
+      },
+    }),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async (_url, init) => {
+        providerRequest = JSON.parse(init.body);
+        return Response.json({
+          output_text: JSON.stringify({
+            recipes: [recipe("Spinach Rice Skillet"), recipe("Egg Rice Bowl"), recipe("Cheddar Spinach Cups")],
+          }),
+        });
+      },
+    },
+  );
+  const body = await response.json();
+  const sentRequest = JSON.parse(providerRequest.input[1].content);
+
+  assert.equal(response.status, 200);
+  assert.equal(body.recipes[0].servings, 4);
+  assert.deepEqual(sentRequest.constraints, {
+    servings: 4,
+    avoid: "peanuts, shellfish",
+    diet: "vegetarian",
+    maxTotalTimeMinutes: 30,
+    cuisineOrFlavor: "bright Thai",
+    equipment: ["oven", "air-fryer"],
+  });
+});
+
 test("rejects provider output that uses avoided ingredients", async () => {
   const response = await handleGenerateRecipeRequest(
     validRequest({ constraints: { avoid: "peanuts" } }),
@@ -111,6 +151,79 @@ test("rejects provider output that uses avoided ingredients", async () => {
         Response.json({
           output_text: JSON.stringify({
             recipes: [recipe("Peanut Rice Bowl", ["peanuts"]), recipe("Egg Rice Bowl"), recipe("Cheddar Spinach Cups")],
+          }),
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error, "invalid_ai_output");
+});
+
+test("allows safety notes to mention avoided ingredients", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({ constraints: { avoid: "peanuts" } }),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            recipes: [
+              recipe("Spinach Rice Skillet", ["eggs"], ["Avoid peanuts; cross-contamination cannot be assessed."]),
+              recipe("Egg Rice Bowl", ["rice"], ["Avoid peanuts; check ingredient labels."]),
+              recipe("Cheddar Spinach Cups", ["spinach"], ["Avoid peanuts in toppings and sauces."]),
+            ],
+          }),
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.recipes.length, 3);
+  assert.match(body.recipes[0].allergyNotes[0], /peanuts/);
+});
+
+test("filters avoided ingredients out of deterministic fallback recipes", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      ingredientsText: "peanuts, rice, spinach",
+      constraints: { avoid: "peanuts", servings: 3 },
+    }),
+    { COOKOOI_ENABLE_FALLBACK: "true" },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(body.recipes.length, 3);
+  for (const fallbackRecipe of body.recipes) {
+    assert.deepEqual(fallbackRecipe.usesFromAvailableItems, ["rice", "spinach"]);
+    assert.equal(fallbackRecipe.servings, 3);
+    assert.match(fallbackRecipe.allergyNotes.join(" "), /Avoid peanuts/);
+    assert.match(fallbackRecipe.allergyNotes.join(" "), /cross-contamination cannot be assessed/);
+  }
+});
+
+test("rejects unsupported equipment constraints", async () => {
+  const response = await handleGenerateRecipeRequest(validRequest({ constraints: { equipment: ["campfire"] } }));
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /unsupported/i);
+});
+
+test("rejects provider output that exceeds requested available time", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({ constraints: { maxTotalTimeMinutes: 10 } }),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            recipes: [recipe("Spinach Rice Skillet"), recipe("Egg Rice Bowl"), recipe("Cheddar Spinach Cups")],
           }),
         }),
     },
@@ -133,7 +246,7 @@ function validRequest(overrides = {}) {
   });
 }
 
-function recipe(title, used = ["eggs", "spinach", "rice"]) {
+function recipe(title, used = ["eggs", "spinach", "rice"], allergyNotes = ["Contains egg and dairy."]) {
   return {
     title,
     summary: "A practical quick dinner using ingredients available.",
@@ -145,7 +258,7 @@ function recipe(title, used = ["eggs", "spinach", "rice"]) {
     servings: 2,
     difficulty: "easy",
     dietaryNotes: ["vegetarian"],
-    allergyNotes: ["Contains egg and dairy."],
+    allergyNotes,
     foodSafetyNotes: ["Cook eggs until set."],
     substitutions: ["Use another melting cheese if cheddar is unavailable."],
     confidenceNotes: "Assumes the rice is already cooked.",

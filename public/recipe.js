@@ -1,9 +1,17 @@
+import { buildRecipeRequestPayload } from "./recipe-payload.js";
+
 const libraryKey = "cookooi-library-v1";
 
 const els = {
   form: document.querySelector("#recipe-form"),
   ingredients: document.querySelector("#ingredients-input"),
   craving: document.querySelector("#craving-input"),
+  avoid: document.querySelector("#avoid-input"),
+  diet: document.querySelector("#diet-input"),
+  servings: document.querySelector("#servings-input"),
+  maxTotalTimeMinutes: document.querySelector("#time-input"),
+  cuisineOrFlavor: document.querySelector("#cuisine-input"),
+  equipment: Array.from(document.querySelectorAll("input[name='equipment']")),
   generateButton: document.querySelector("#generate-button"),
   generationStatus: document.querySelector("#generation-status"),
   proposalGrid: document.querySelector("#proposal-grid"),
@@ -89,14 +97,21 @@ function setGenerating(isGenerating) {
 }
 
 async function requestRecipeGeneration() {
+  const payload = buildRecipeRequestPayload({
+    ingredientsText: els.ingredients.value,
+    craving: els.craving.value,
+    avoid: els.avoid.value,
+    diet: els.diet.value,
+    servings: els.servings.value,
+    maxTotalTimeMinutes: els.maxTotalTimeMinutes.value,
+    cuisineOrFlavor: els.cuisineOrFlavor.value,
+    equipment: els.equipment.filter((input) => input.checked).map((input) => input.value),
+  });
+
   const response = await fetch("/api/recipes/generate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      ingredientsText: els.ingredients.value,
-      craving: els.craving.value,
-      constraints: {},
-    }),
+    body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));
 

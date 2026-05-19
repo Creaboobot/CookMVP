@@ -3,6 +3,7 @@ const DEFAULT_MODEL = "gpt-5.4-mini";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
 const allowedDiets = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "other"]);
+const allowedEquipment = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
 const allowedConstraintFields = new Set([
   "avoid",
   "diet",
@@ -239,7 +240,16 @@ function validateRecipeRequest(payload) {
     if (!Array.isArray(constraints.equipment) || constraints.equipment.some((item) => typeof item !== "string")) {
       return invalid("Equipment must be a list of text values.");
     }
-    normalizedConstraints.equipment = constraints.equipment.map(cleanText).filter(Boolean).slice(0, 12);
+    if (constraints.equipment.length > 8) {
+      return invalid("Equipment must include 8 items or fewer.");
+    }
+    const equipment = constraints.equipment
+      .map((item) => cleanText(item).toLowerCase().replace(/\s+/g, "-"))
+      .filter(Boolean);
+    if (equipment.some((item) => !allowedEquipment.has(item))) {
+      return invalid("Equipment includes an unsupported option.");
+    }
+    normalizedConstraints.equipment = [...new Set(equipment)];
   }
 
   return {
@@ -340,15 +350,15 @@ function validateRecipeResponse(payload, request) {
   const recipes = [];
 
   for (const recipe of payload.recipes) {
-    const normalized = validateRecipe(recipe, request.constraints.servings);
+    const normalized = validateRecipe(recipe, request.constraints);
     if (!normalized) {
       return { ok: false };
     }
 
-    const searchableText = JSON.stringify(normalized).toLowerCase();
-    if (avoidTerms.some((term) => term && searchableText.includes(term))) {
+    if (recipeSuggestsAvoidedTerm(normalized, avoidTerms)) {
       return { ok: false };
     }
+    const searchableText = JSON.stringify(normalized).toLowerCase();
     if (unsafeClaims.some((claim) => searchableText.includes(claim))) {
       return { ok: false };
     }
@@ -359,7 +369,7 @@ function validateRecipeResponse(payload, request) {
   return { ok: true, recipes };
 }
 
-function validateRecipe(recipe, requestedServings) {
+function validateRecipe(recipe, constraints) {
   if (!recipe || typeof recipe !== "object") {
     return null;
   }
@@ -377,6 +387,7 @@ function validateRecipe(recipe, requestedServings) {
   const prepTimeMinutes = validInteger(recipe.prepTimeMinutes, 0, 240);
   const cookTimeMinutes = validInteger(recipe.cookTimeMinutes, 0, 240);
   const servings = validInteger(recipe.servings, 1, 12);
+  const totalTimeMinutes = prepTimeMinutes + cookTimeMinutes;
 
   if (
     !title ||
@@ -393,6 +404,7 @@ function validateRecipe(recipe, requestedServings) {
     prepTimeMinutes === null ||
     cookTimeMinutes === null ||
     servings === null ||
+    (constraints.maxTotalTimeMinutes && totalTimeMinutes > constraints.maxTotalTimeMinutes) ||
     !recipeDifficulties.has(recipe.difficulty)
   ) {
     return null;
@@ -406,7 +418,7 @@ function validateRecipe(recipe, requestedServings) {
     steps,
     prepTimeMinutes,
     cookTimeMinutes,
-    servings: requestedServings || servings,
+    servings: constraints.servings || servings,
     difficulty: recipe.difficulty,
     dietaryNotes,
     allergyNotes,
@@ -422,6 +434,7 @@ function createSystemPrompt() {
     "Generate exactly three distinct recipe proposals.",
     "Prefer items the user has and keep items still needed practical and short.",
     "Respect avoidances, allergies, diet, available time, servings, and equipment.",
+    "Treat avoidances as ingredients the user cannot use and state that cross-contamination cannot be assessed when allergies are provided.",
     "Include practical substitutions and concise food-safety and allergy notes.",
     "Never claim a recipe is allergen-free, medically appropriate, nutritionally guaranteed, or definitely safe.",
     "Return only JSON matching the provided schema. Do not ask follow-up questions.",
@@ -485,19 +498,21 @@ function recipeResponseSchema() {
 }
 
 function createFallbackResponse(request, model, warning) {
+  const avoidTerms = splitAvoidTerms(request.constraints.avoid);
   const ingredients = request.ingredientsText
     .split(/[\n,]+|\band\b/gi)
     .map(cleanText)
     .filter(Boolean)
+    .filter((ingredient) => !matchesAvoidedTerm(ingredient, avoidTerms))
     .slice(0, 5);
-  const used = ingredients.length ? ingredients : ["available items"];
+  const used = ingredients.length ? ingredients : ["available items that fit your constraints"];
   const servings = request.constraints.servings || 2;
 
   return {
     recipes: [
-      fallbackRecipe("Quick Available-Ingredient Skillet", request.craving, used, servings, "easy"),
-      fallbackRecipe("Flexible Cookooi Bowl", request.craving, used, servings, "easy"),
-      fallbackRecipe("Simple Pantry Plate", request.craving, used, servings, "easy"),
+      fallbackRecipe("Quick Available-Ingredient Skillet", request.craving, used, servings, "easy", request.constraints),
+      fallbackRecipe("Flexible Cookooi Bowl", request.craving, used, servings, "easy", request.constraints),
+      fallbackRecipe("Simple Pantry Plate", request.craving, used, servings, "easy", request.constraints),
     ],
     source: "fallback",
     provider: "fallback",
@@ -507,7 +522,14 @@ function createFallbackResponse(request, model, warning) {
   };
 }
 
-function fallbackRecipe(title, craving, used, servings, difficulty) {
+function fallbackRecipe(title, craving, used, servings, difficulty, constraints) {
+  const totalTime = constraints.maxTotalTimeMinutes || 25;
+  const prepTimeMinutes = Math.min(10, Math.max(5, Math.floor(totalTime / 3)));
+  const cookTimeMinutes = Math.max(0, Math.min(15, totalTime - prepTimeMinutes));
+  const allergyNotes = constraints.avoid
+    ? [`Avoid ${constraints.avoid}; cross-contamination cannot be assessed.`]
+    : ["Check labels and avoid known allergens before cooking."];
+
   return {
     title,
     summary: `A simple fallback idea for a ${craving || "practical"} meal using the items available.`,
@@ -519,12 +541,12 @@ function fallbackRecipe(title, craving, used, servings, difficulty) {
       "Cook firm ingredients first, then add softer ingredients.",
       "Season gradually and taste before serving.",
     ],
-    prepTimeMinutes: 10,
-    cookTimeMinutes: 15,
+    prepTimeMinutes,
+    cookTimeMinutes,
     servings,
     difficulty,
-    dietaryNotes: [],
-    allergyNotes: ["Check labels and avoid known allergens before cooking."],
+    dietaryNotes: constraints.diet && constraints.diet !== "none" ? [`Requested diet: ${constraints.diet}.`] : [],
+    allergyNotes,
     foodSafetyNotes: ["Cook high-risk ingredients thoroughly and reheat leftovers until steaming hot."],
     substitutions: ["Use a similar available vegetable, grain, or protein if one item is missing."],
     confidenceNotes: "Fallback output uses broad cooking guidance because AI generation is unavailable.",
@@ -578,6 +600,33 @@ function splitAvoidTerms(value = "") {
     .split(/[\n,;]+|\band\b|\bor\b/gi)
     .map((term) => term.trim())
     .filter(Boolean);
+}
+
+function recipeSuggestsAvoidedTerm(recipe, avoidTerms) {
+  if (!avoidTerms.length) {
+    return false;
+  }
+
+  const searchableText = JSON.stringify({
+    title: recipe.title,
+    summary: recipe.summary,
+    usesFromAvailableItems: recipe.usesFromAvailableItems,
+    itemsStillNeeded: recipe.itemsStillNeeded,
+    steps: recipe.steps,
+    substitutions: recipe.substitutions,
+    confidenceNotes: recipe.confidenceNotes,
+  }).toLowerCase();
+
+  return avoidTerms.some((term) => term && searchableText.includes(term));
+}
+
+function matchesAvoidedTerm(value, avoidTerms) {
+  const normalizedValue = value.toLowerCase();
+  return avoidTerms.some((term) => {
+    const normalizedTerm = term.toLowerCase();
+    const variants = normalizedTerm.endsWith("s") ? [normalizedTerm, normalizedTerm.slice(0, -1)] : [normalizedTerm];
+    return variants.some((variant) => variant && normalizedValue.includes(variant));
+  });
 }
 
 function validString(value, maxLength) {
