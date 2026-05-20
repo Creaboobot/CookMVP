@@ -389,7 +389,7 @@ function savedRecipeMetaText(entry) {
 
   return [savedDate ? `Saved ${savedDate}` : "", source ? `Source: ${source}` : "", entry.generationId ? "Linked to generation" : ""]
     .filter(Boolean)
-    .join(" · ");
+    .join(" - ");
 }
 
 async function runGeneration(payload, statusMessage = "Generating three Cookooi recipe proposals...") {

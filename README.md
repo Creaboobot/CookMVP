@@ -4,6 +4,14 @@ Cookooi is a local recipe prototype. Enter ingredients you already have, add wha
 
 ## Run
 
+Install dependencies once from a fresh clone:
+
+```powershell
+npm ci
+```
+
+Then start Cookooi:
+
 ```powershell
 npm start
 ```
@@ -77,3 +85,44 @@ Use the in-app session data controls to export/import a single JSON file for pro
 ```
 
 The import action also accepts the Task 9 feedback-only JSON format so older test exports can still be reviewed. Clear actions remove browser-local saved recipes and/or session data only; exported files are the recovery path after clearing.
+
+## User testing readiness checklist
+
+Before inviting testers, run the app from the current `main` branch and verify the same flow through the local route and, when the tunnel is active, the public route:
+
+```text
+http://127.0.0.1:3004
+https://cookooi.creabooboard.win
+```
+
+Checklist:
+
+1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
+2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
+3. Enter ingredients the tester has, a craving, at least one avoidance, servings, available time, cuisine or flavor, and available equipment.
+4. Generate recipes and confirm exactly three proposals appear.
+5. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
+6. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
+7. Rate one proposal, add an optional note, refresh the page, and confirm the session summary still counts the saved recipe, rating, and generation record.
+8. Export session JSON, clear session data, import the exported JSON, and confirm the saved recipe and feedback return.
+9. Test a known error path by running without `OPENAI_API_KEY` and confirm the message says generation is not configured instead of showing fake success.
+10. Check desktop and mobile widths for readable controls, cards, saved recipe details, and session data actions.
+
+If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also run one OpenAI-backed generation and confirm the successful status says the proposals are AI-generated. If no provider key is configured, keep `COOKOOI_ENABLE_FALLBACK=true` for local workflow testing and record OpenAI-backed generation as not configured for that run.
+
+## Tester instruction script
+
+Use this short script for the first testing round:
+
+```text
+Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Add a few ingredients, what you are craving, and any allergies or ingredients you avoid. After the recipes appear, compare the items used and items still needed, open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
+```
+
+After each test session, use `Export session JSON` before clearing the browser-local session data.
+
+## Known limitations for first testing
+
+- Saved recipes, feedback, and session data are browser-local only.
+- Exported session JSON is the only transfer or recovery path after clearing local data.
+- OpenAI-backed generation depends on server-side `OPENAI_API_KEY` configuration; the app can use clearly labeled deterministic fallback output for local workflow testing.
+- Cookooi provides recipe proposals, not safety, allergy, medical, or nutrition guarantees.
