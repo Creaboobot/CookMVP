@@ -54,6 +54,12 @@ Before resetting or replacing any local checkout, preserve uncommitted files and
 
 Merged automation branches and stale worktrees are cleaned up using the policy in `docs/automation-cleanup.md`. Task 15 deleted merged `codex/*` task branches for PRs #1-#14 and removed the clean stale `infra-ci-worktree`; generated run folders and automation memory remain preserved for traceability.
 
+## Agent operations
+
+Future Cookooi task batches should run implementation under a publish-capable Windows identity, currently proven as `creaboo\Creaboo_human`. If scheduled runs execute as `creaboo\CodexSandboxOffline` and shell GitHub/npm HTTPS is blocked, the execution agent should use connector publish mode only when connector reads work and the mirror clone is current enough for safe local validation.
+
+See `docs/agent-operations.md` for the required health-check command, mirror repair expectations, connector fallback rules, and the no-duplicate-support-task policy for the known runtime identity blocker.
+
 ## Recipe generation API
 
 The server exposes:
