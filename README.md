@@ -52,6 +52,8 @@ Retired or stale local paths should not be used for Cookooi testing or edits:
 
 Before resetting or replacing any local checkout, preserve uncommitted files and confirm the current state with `git status --short --branch`. See `docs/local-workspace.md` for the normalization notes from Task 13.
 
+Merged automation branches and stale worktrees are cleaned up using the policy in `docs/automation-cleanup.md`. Task 15 deleted merged `codex/*` task branches for PRs #1-#14 and removed the clean stale `infra-ci-worktree`; generated run folders and automation memory remain preserved for traceability.
+
 ## Recipe generation API
 
 The server exposes:
