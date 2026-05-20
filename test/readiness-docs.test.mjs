@@ -19,11 +19,20 @@ test("documents the first user testing readiness flow", async () => {
 
 test("documents provider configuration and fallback expectations", async () => {
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const providerDoc = await readFile(new URL("../docs/openai-provider-verification.md", import.meta.url), "utf8");
 
   assert.match(readme, /OPENAI_API_KEY/);
   assert.match(readme, /AI-generated/);
   assert.match(readme, /COOKOOI_ENABLE_FALLBACK=true/);
   assert.match(readme, /fallback output/);
+  assert.match(readme, /openai-provider-verification\.md/);
+  assert.match(providerDoc, /OpenAI Provider Verification/);
+  assert.match(providerDoc, /server environment only/);
+  assert.match(providerDoc, /provider_unavailable/);
+  assert.match(providerDoc, /source: "ai"/);
+  assert.match(providerDoc, /provider: "openai"/);
+  assert.match(providerDoc, /\.dev\.vars` is ignored by Git/);
+  assert.doesNotMatch(providerDoc, /sk-[A-Za-z0-9_-]{20,}/);
 });
 
 test("tester-facing browser code avoids mojibake separators", async () => {
