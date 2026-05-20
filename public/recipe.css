@@ -441,6 +441,11 @@ h1 {
   margin: 0;
 }
 
+.recipe-save-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .feedback-panel {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
@@ -569,5 +574,9 @@ h1 {
   .save-button,
   .feedback-rating-button {
     width: 100%;
+  }
+
+  .recipe-save-row {
+    justify-content: stretch;
   }
 }
