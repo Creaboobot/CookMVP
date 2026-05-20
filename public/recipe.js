@@ -300,7 +300,7 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
         "warning",
       );
     } else {
-      setGenerationStatus("Three server-generated recipes are ready.", "success");
+      setGenerationStatus("Three AI-generated recipe proposals are ready. Review safety notes before cooking.", "success");
     }
   } catch (error) {
     activeProposals = [];
