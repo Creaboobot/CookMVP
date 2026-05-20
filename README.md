@@ -38,6 +38,20 @@ npm run start:node
 
 The app is static and stores saved recipes in the browser's local storage. No AI behavior is changed by this runtime task.
 
+## Local workspace
+
+Use `C:\Users\Creaboo_human\Documents\Cookooi` as the canonical human testing workspace for Cookooi. That path matches the product name and should be the only long-lived local checkout used for manual testing.
+
+The GitHub repository remains `Creaboobot/CookMVP`. Automation execution still uses fresh generated clones under `C:\Users\Creaboo_human\Documents\CookooiAutomation\runs`; those run folders are task artifacts, not human workspaces.
+
+Retired or stale local paths should not be used for Cookooi testing or edits:
+
+- `C:\Users\Creaboo_human\Documents\CookMVP`
+- `C:\Users\Creaboo_human\Documents\CookooiAutomation\CookMVP`
+- `C:\Users\Creaboo_human\Documents\CookooiAutomation\infra-ci-worktree`
+
+Before resetting or replacing any local checkout, preserve uncommitted files and confirm the current state with `git status --short --branch`. See `docs/local-workspace.md` for the normalization notes from Task 13.
+
 ## Recipe generation API
 
 The server exposes:

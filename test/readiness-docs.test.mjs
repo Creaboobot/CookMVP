@@ -32,3 +32,17 @@ test("tester-facing browser code avoids mojibake separators", async () => {
   assert.doesNotMatch(script, /\u00c2/);
   assert.match(script, /\.join\(" - "\)/);
 });
+
+test("documents the canonical local workspace and retired paths", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const workspaceDoc = await readFile(new URL("../docs/local-workspace.md", import.meta.url), "utf8");
+
+  assert.match(readme, /Local workspace/);
+  assert.match(readme, /Documents\\Cookooi/);
+  assert.match(readme, /CookooiAutomation\\runs/);
+  assert.match(workspaceDoc, /Canonical Human Workspace/);
+  assert.match(workspaceDoc, /Documents\\Cookooi/);
+  assert.match(workspaceDoc, /Documents\\CookMVP/);
+  assert.match(workspaceDoc, /infra-ci-worktree/);
+  assert.match(workspaceDoc, /Do not delete or reset local files/);
+});
