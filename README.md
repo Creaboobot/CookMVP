@@ -45,3 +45,9 @@ The endpoint reads provider configuration from the server environment only:
 - `COOKOOI_ENABLE_FALLBACK=true`: optional testing mode for deterministic fallback output when OpenAI is unavailable.
 
 Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
+
+## Testing privacy notes
+
+Cookooi sends the ingredients the user has, their craving, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
+
+Saved recipes are stored only in this browser's local storage during the current MVP. This task does not add feedback capture, analytics, accounts, or server-side persistence.
