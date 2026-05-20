@@ -50,6 +50,8 @@ Task 15 confirmed these remote branches all had closed merged pull requests and 
 | `codex/final-user-testing-readiness` | #12 |
 | `codex/normalize-canonical-local-workspace` | #13 |
 | `codex/verify-openai-backed-generation-path` | #14 |
+| `codex/cleanup-merged-automation-branches` | #15 |
+| `codex/harden-agent-operations-next-batch` | #16 |
 
 Task 15 also removed the clean stale local worktree:
 
@@ -58,6 +60,8 @@ C:\Users\Creaboo_human\Documents\CookooiAutomation\infra-ci-worktree
 ```
 
 The local branch `codex/add-ci-workflow` was deleted from the canonical workspace after the worktree was removed. Automation run folders, reports, memory, scripts, tool cache, and mirror cache were preserved.
+
+After Tasks 15 and 16 were reviewed and merged, their remote task branches were also deleted. `git ls-remote --heads origin "refs/heads/codex/*"` should now return no stale task branches.
 
 ## Verification
 

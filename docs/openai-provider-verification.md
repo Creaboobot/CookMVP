@@ -4,24 +4,27 @@ Task 14 checks the server-side OpenAI generation path before external user testi
 
 ## Current Verification Result
 
-Run date: 2026-05-20
+Latest run date: 2026-05-20
 
-Local task clone:
+Canonical local checkout:
 
 ```text
-C:\Users\Creaboo_human\Documents\CookooiAutomation\runs\task-14-20260520-170032\CookMVP
+C:\Users\Creaboo_human\Documents\Cookooi
 ```
 
-The task clone did not contain an ignored `.dev.vars` file, and the local process environment did not expose `OPENAI_API_KEY`. Because no server-side provider key was configured, a real OpenAI-backed generation could not be completed in this run.
+An ignored `.dev.vars` file was present in the canonical local checkout and provided server-side OpenAI configuration to Wrangler. A temporary Wrangler dev server was started on `127.0.0.1:3014`, and one realistic recipe request completed through the provider-backed path.
 
-The expected no-secret behavior was verified:
+The provider-backed smoke verified:
 
-- With no `OPENAI_API_KEY` and fallback disabled, `POST /api/recipes/generate` returns `503 provider_unavailable`.
-- With `COOKOOI_ENABLE_FALLBACK=true`, the same endpoint returns three clearly labeled fallback proposals with `source: "fallback"` and `provider: "fallback"`.
+- `POST /api/recipes/generate` returned exactly three recipes.
+- The response was labeled `source: "ai"`.
+- The response was labeled `provider: "openai"`.
+- A model value was present.
+- The first recipe included food-safety notes and allergy notes.
 - `.dev.vars` is ignored by Git.
 - No provider secret was added to the repository.
 
-This is a configuration gap, not a browser or recipe-rendering failure.
+Earlier Task 14 fallback checks also verified that with no `OPENAI_API_KEY` and fallback disabled, `POST /api/recipes/generate` returns `503 provider_unavailable`, and with `COOKOOI_ENABLE_FALLBACK=true`, the endpoint returns three clearly labeled fallback proposals with `source: "fallback"` and `provider: "fallback"`.
 
 ## Safe Local Provider Check
 

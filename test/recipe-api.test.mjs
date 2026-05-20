@@ -226,6 +226,29 @@ test("rejects provider output that uses avoided ingredients", async () => {
   assert.equal(body.error, "invalid_ai_output");
 });
 
+test("rejects provider output with malformed recipe detail arrays", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            recipes: [
+              recipe("Spinach Rice Skillet", ["eggs", "   "]),
+              recipe("Egg Rice Bowl"),
+              recipe("Cheddar Spinach Cups"),
+            ],
+          }),
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error, "invalid_ai_output");
+});
+
 test("allows safety notes to mention avoided ingredients", async () => {
   const response = await handleGenerateRecipeRequest(
     validRequest({ constraints: { avoid: "peanuts" } }),
