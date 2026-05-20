@@ -61,3 +61,20 @@ test("documents the canonical local workspace and retired paths", async () => {
   assert.match(cleanupDoc, /PRs #1-#14|#14/);
   assert.match(cleanupDoc, /MIRROR_OK=true/);
 });
+
+test("documents agent operations for future task batches", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const operationsDoc = await readFile(new URL("../docs/agent-operations.md", import.meta.url), "utf8");
+
+  assert.match(readme, /Agent operations/);
+  assert.match(readme, /agent-operations\.md/);
+  assert.match(operationsDoc, /Selected Operating Mode/);
+  assert.match(operationsDoc, /creaboo\\Creaboo_human/);
+  assert.match(operationsDoc, /health-check\.ps1/);
+  assert.match(operationsDoc, /-AllowPushProbe -RequirePush/);
+  assert.match(operationsDoc, /CAN_PUBLISH=True/);
+  assert.match(operationsDoc, /repair-mirror-cache\.ps1/);
+  assert.match(operationsDoc, /Connector Fallback Rules/);
+  assert.match(operationsDoc, /CodexSandboxOffline/);
+  assert.match(operationsDoc, /No-op Review Behavior/);
+});
