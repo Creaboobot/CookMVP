@@ -9,6 +9,7 @@
   --primary-dark: #115e59;
   --accent: #c2410c;
   --danger: #b42318;
+  --info: #1d4ed8;
   --shadow: 0 20px 50px rgba(154, 52, 18, 0.14);
   --radius: 20px;
 }
@@ -56,6 +57,7 @@ button:disabled {
 .planner-card,
 .results-section,
 .library-section,
+.feedback-section,
 .recipe-card,
 .library-item,
 .empty-state {
@@ -117,7 +119,8 @@ h1 {
 
 .planner-card,
 .results-section,
-.library-section {
+.library-section,
+.feedback-section {
   padding: clamp(18px, 4vw, 28px);
 }
 
@@ -170,6 +173,21 @@ h1 {
 .generation-status[data-tone="error"] {
   background: #fef3f2;
   border-color: #fecdca;
+  color: var(--danger);
+}
+
+.feedback-status {
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0;
+  min-height: 22px;
+}
+
+.feedback-status[data-tone="success"] {
+  color: var(--primary-dark);
+}
+
+.feedback-status[data-tone="error"] {
   color: var(--danger);
 }
 
@@ -422,6 +440,65 @@ h1 {
   margin: 0;
 }
 
+.feedback-panel {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+}
+
+.feedback-heading h4,
+.feedback-summary {
+  margin: 0;
+}
+
+.feedback-summary {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.feedback-rating-group,
+.feedback-actions,
+.feedback-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.feedback-rating-button {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 800;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.feedback-rating-button[aria-pressed="true"] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: var(--info);
+}
+
+.feedback-note textarea {
+  min-height: 70px;
+}
+
+.feedback-save-button {
+  min-height: 38px;
+}
+
+.feedback-save-status {
+  align-self: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .saved-recipe-details {
   margin-top: 12px;
 }
@@ -482,7 +559,8 @@ h1 {
 
   .primary-button,
   .secondary-button,
-  .save-button {
+  .save-button,
+  .feedback-rating-button {
     width: 100%;
   }
 }
