@@ -132,6 +132,11 @@
               ingredients, allergies, freshness, and cooking safety before making a meal.
             </p>
             <p>Saved recipes stay in this browser unless you clear them.</p>
+            <p>
+              Ratings, optional notes, and minimal generation metadata stay in this browser for
+              testing export. Cookooi does not store raw ingredients, cravings, or free-text
+              preferences in feedback analytics.
+            </p>
           </aside>
 
           <div class="form-actions">
@@ -168,6 +173,23 @@
           <button class="text-button danger" id="clear-library-button" type="button">Clear library</button>
         </div>
         <div class="library-list" id="library-list" aria-live="polite"></div>
+      </section>
+
+      <section class="feedback-section" aria-labelledby="feedback-title">
+        <div class="section-title-row">
+          <div>
+            <p class="eyebrow">Testing data</p>
+            <h2 id="feedback-title">Feedback export</h2>
+          </div>
+        </div>
+        <p class="feedback-summary" id="feedback-summary" aria-live="polite"></p>
+        <div class="feedback-data-actions">
+          <button class="secondary-button" id="export-feedback-button" type="button">Export JSON</button>
+          <button class="secondary-button" id="import-feedback-button" type="button">Import JSON</button>
+          <button class="text-button danger" id="clear-feedback-button" type="button">Clear feedback</button>
+          <input id="import-feedback-input" type="file" accept="application/json,.json" hidden />
+        </div>
+        <p class="feedback-status" id="feedback-status" aria-live="polite"></p>
       </section>
     </main>
 

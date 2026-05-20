@@ -50,4 +50,6 @@ Do not put provider keys in browser files. For local Wrangler testing, keep secr
 
 Cookooi sends the ingredients the user has, their craving, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
 
-Saved recipes are stored only in this browser's local storage during the current MVP. This task does not add feedback capture, analytics, accounts, or server-side persistence.
+Saved recipes are stored only in this browser's local storage during the current MVP.
+
+Feedback capture and lightweight analytics are also browser-local for the first testing pass. The stored feedback JSON includes an anonymous local session id, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, avoidances, or free-text cuisine/flavor preferences; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.

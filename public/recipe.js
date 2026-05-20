@@ -1,5 +1,17 @@
 import { buildRecipeRequestPayload } from "./recipe-payload.js";
 import {
+  clearFeedbackData,
+  exportFeedbackData,
+  feedbackSummary,
+  getRecipeFeedback,
+  getSessionId,
+  importFeedbackData,
+  markRecipeSaved,
+  recordGenerationFailure,
+  recordGenerationSuccess,
+  saveRecipeFeedback,
+} from "./feedback-store.js";
+import {
   mapServerRecipe,
   normalizeRecipeForDisplay,
   recipeMetaItems,
@@ -8,6 +20,7 @@ import {
 
 const libraryKey = "cookooi-library-v1";
 const generationTimeoutMs = 30_000;
+const feedbackExportName = "cookooi-feedback.json";
 
 const els = {
   form: document.querySelector("#recipe-form"),
@@ -29,12 +42,19 @@ const els = {
   voiceStatus: document.querySelector("#voice-status"),
   clearResultsButton: document.querySelector("#clear-results-button"),
   clearLibraryButton: document.querySelector("#clear-library-button"),
+  feedbackSummary: document.querySelector("#feedback-summary"),
+  feedbackStatus: document.querySelector("#feedback-status"),
+  exportFeedbackButton: document.querySelector("#export-feedback-button"),
+  importFeedbackButton: document.querySelector("#import-feedback-button"),
+  importFeedbackInput: document.querySelector("#import-feedback-input"),
+  clearFeedbackButton: document.querySelector("#clear-feedback-button"),
 };
 
 let activeProposals = [];
 let recognition = null;
 let generationInFlight = false;
 let lastSubmittedPayload = null;
+const sessionId = getSessionId();
 
 function loadLibrary() {
   return JSON.parse(localStorage.getItem(libraryKey) || "[]");
@@ -98,13 +118,95 @@ function renderProposal(recipeData) {
     if (!library.some((savedRecipe) => savedRecipe.title === recipe.title && savedRecipe.summary === recipe.summary)) {
       saveLibrary([recipe, ...library]);
     }
+    markRecipeSaved(recipe);
     saveButton.textContent = "Saved";
     saveButton.disabled = true;
     card.classList.add("saved");
     renderLibrary();
+    renderFeedbackSummary();
   });
 
+  card.append(createFeedbackPanel(recipe));
+
   return fragment;
+}
+
+function createFeedbackPanel(recipe) {
+  const savedFeedback = getRecipeFeedback(recipe.id);
+  const panel = document.createElement("form");
+  const heading = document.createElement("div");
+  const title = document.createElement("h4");
+  const ratingGroup = document.createElement("div");
+  const upButton = feedbackRatingButton("Good fit", "up");
+  const downButton = feedbackRatingButton("Needs work", "down");
+  const label = document.createElement("label");
+  const labelText = document.createElement("span");
+  const note = document.createElement("textarea");
+  const actions = document.createElement("div");
+  const saveButton = document.createElement("button");
+  const status = document.createElement("span");
+  let selectedRating = savedFeedback?.rating || "";
+
+  panel.className = "feedback-panel";
+  title.textContent = "Tester feedback";
+  heading.className = "feedback-heading";
+  ratingGroup.className = "feedback-rating-group";
+  ratingGroup.setAttribute("role", "group");
+  ratingGroup.setAttribute("aria-label", `Rate ${recipe.title}`);
+  label.className = "feedback-note field";
+  labelText.textContent = "Optional note";
+  note.maxLength = 500;
+  note.rows = 2;
+  note.value = savedFeedback?.note || "";
+  note.placeholder = "What worked or did not work?";
+  actions.className = "feedback-actions";
+  saveButton.className = "secondary-button feedback-save-button";
+  saveButton.type = "submit";
+  saveButton.textContent = "Save feedback";
+  status.className = "feedback-save-status";
+  status.setAttribute("aria-live", "polite");
+  status.textContent = savedFeedback ? "Saved locally." : "";
+
+  const setSelectedRating = (rating) => {
+    selectedRating = rating;
+    for (const button of [upButton, downButton]) {
+      button.setAttribute("aria-pressed", String(button.dataset.rating === selectedRating));
+    }
+  };
+
+  upButton.addEventListener("click", () => setSelectedRating("up"));
+  downButton.addEventListener("click", () => setSelectedRating("down"));
+
+  panel.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    try {
+      saveRecipeFeedback({ recipe, rating: selectedRating, note: note.value });
+      status.textContent = "Saved locally.";
+      renderFeedbackSummary();
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+
+  setSelectedRating(selectedRating);
+  heading.append(title);
+  ratingGroup.append(upButton, downButton);
+  label.append(labelText, note);
+  actions.append(saveButton, status);
+  panel.append(heading, ratingGroup, label, actions);
+
+  return panel;
+}
+
+function feedbackRatingButton(label, rating) {
+  const button = document.createElement("button");
+  button.className = "feedback-rating-button";
+  button.type = "button";
+  button.dataset.rating = rating;
+  button.textContent = label;
+  button.setAttribute("aria-pressed", "false");
+  return button;
 }
 
 function setGenerationStatus(message, tone = "neutral") {
@@ -147,7 +249,7 @@ async function requestRecipeGeneration(payload) {
   try {
     response = await fetch("/api/recipes/generate", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-cookooi-session": sessionId },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -291,7 +393,9 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
   try {
     const generation = await requestRecipeGeneration(payload);
     activeProposals = generation.recipes.map((recipe, index) => mapServerRecipe(recipe, generation, index));
+    recordGenerationSuccess({ payload, generation, recipes: activeProposals, sessionId });
     renderProposals(activeProposals);
+    renderFeedbackSummary();
     if (generation.source === "fallback") {
       setGenerationStatus(
         generation.warning
@@ -303,12 +407,55 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
       setGenerationStatus("Three AI-generated recipe proposals are ready. Review safety notes before cooking.", "success");
     }
   } catch (error) {
+    recordGenerationFailure({ payload, error, sessionId });
     activeProposals = [];
     renderProposals(activeProposals);
+    renderFeedbackSummary();
     setGenerationStatus(error.message, "error");
     setRetryVisible(Boolean(error.retryable && lastSubmittedPayload));
   } finally {
     setGenerating(false);
+  }
+}
+
+function renderFeedbackSummary() {
+  const summary = feedbackSummary();
+  const totalItems = summary.generationCount + summary.feedbackCount + summary.savedRecipeCount;
+
+  els.feedbackSummary.textContent = `${summary.feedbackCount} ratings, ${summary.generationCount} generation records, ${summary.savedRecipeCount} saved recipe markers.`;
+  els.exportFeedbackButton.disabled = totalItems === 0;
+  els.clearFeedbackButton.disabled = totalItems === 0;
+}
+
+function setFeedbackStatus(message, tone = "neutral") {
+  els.feedbackStatus.textContent = message;
+  els.feedbackStatus.dataset.tone = tone;
+}
+
+function exportFeedbackJson() {
+  const blob = new Blob([exportFeedbackData()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = feedbackExportName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setFeedbackStatus("Feedback export is ready.", "success");
+}
+
+async function importFeedbackJson(file) {
+  try {
+    importFeedbackData(JSON.parse(await file.text()));
+    renderFeedbackSummary();
+    renderProposals(activeProposals);
+    setFeedbackStatus("Feedback data imported.", "success");
+  } catch (error) {
+    setFeedbackStatus(error.message, "error");
+  } finally {
+    els.importFeedbackInput.value = "";
   }
 }
 
@@ -382,5 +529,26 @@ els.clearLibraryButton.addEventListener("click", () => {
   renderLibrary();
 });
 
+els.exportFeedbackButton.addEventListener("click", exportFeedbackJson);
+
+els.importFeedbackButton.addEventListener("click", () => {
+  els.importFeedbackInput.click();
+});
+
+els.importFeedbackInput.addEventListener("change", async () => {
+  const [file] = els.importFeedbackInput.files || [];
+  if (file) {
+    await importFeedbackJson(file);
+  }
+});
+
+els.clearFeedbackButton.addEventListener("click", () => {
+  clearFeedbackData();
+  renderFeedbackSummary();
+  renderProposals(activeProposals);
+  setFeedbackStatus("Feedback data cleared.", "neutral");
+});
+
 setupVoiceInput();
 renderLibrary();
+renderFeedbackSummary();

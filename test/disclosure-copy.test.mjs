@@ -10,4 +10,5 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   assert.match(html, /Do not enter sensitive personal information/);
   assert.match(html, /allergies, freshness, and cooking safety/);
   assert.match(html, /Saved recipes stay in this browser/);
+  assert.match(html, /does not store raw ingredients, cravings, or free-text/);
 });
