@@ -45,13 +45,19 @@ test("tester-facing browser code avoids mojibake separators", async () => {
 test("documents the canonical local workspace and retired paths", async () => {
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
   const workspaceDoc = await readFile(new URL("../docs/local-workspace.md", import.meta.url), "utf8");
+  const cleanupDoc = await readFile(new URL("../docs/automation-cleanup.md", import.meta.url), "utf8");
 
   assert.match(readme, /Local workspace/);
   assert.match(readme, /Documents\\Cookooi/);
   assert.match(readme, /CookooiAutomation\\runs/);
+  assert.match(readme, /automation-cleanup\.md/);
   assert.match(workspaceDoc, /Canonical Human Workspace/);
   assert.match(workspaceDoc, /Documents\\Cookooi/);
   assert.match(workspaceDoc, /Documents\\CookMVP/);
   assert.match(workspaceDoc, /infra-ci-worktree/);
   assert.match(workspaceDoc, /Do not delete or reset local files/);
+  assert.match(cleanupDoc, /Remote Branch Policy/);
+  assert.match(cleanupDoc, /Local Worktree Policy/);
+  assert.match(cleanupDoc, /PRs #1-#14|#14/);
+  assert.match(cleanupDoc, /MIRROR_OK=true/);
 });
