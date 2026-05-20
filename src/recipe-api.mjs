@@ -730,7 +730,8 @@ function validStringArray(value, maxItems, maxLength) {
   if (!Array.isArray(value) || value.length > maxItems || value.some((item) => typeof item !== "string")) {
     return null;
   }
-  return value.map((item) => cleanText(item)).filter((item) => item && item.length <= maxLength);
+  const cleaned = value.map((item) => cleanText(item));
+  return cleaned.every((item) => item && item.length <= maxLength) ? cleaned : null;
 }
 
 function validInteger(value, min, max) {
