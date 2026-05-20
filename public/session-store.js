@@ -10,6 +10,11 @@ export function readSavedRecipeEntries(storage = browserStorage()) {
   return readSavedRecipeData(storage).savedRecipes;
 }
 
+export function isRecipeSaved(recipe, storage = browserStorage()) {
+  const normalizedRecipe = normalizeRecipeForDisplay(recipe);
+  return readSavedRecipeEntries(storage).some((entry) => recipesMatch(entry.recipe, normalizedRecipe));
+}
+
 export function saveRecipeToLibrary({ recipe, sessionId, generationId, storage = browserStorage() }) {
   const data = readSavedRecipeData(storage);
   const normalizedRecipe = normalizeRecipeForDisplay(recipe);
