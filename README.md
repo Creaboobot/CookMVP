@@ -68,6 +68,8 @@ The endpoint reads provider configuration from the server environment only:
 
 Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
 
+See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test note, including the current local configuration result and the safe steps for repeating a real OpenAI-backed check without exposing secrets.
+
 ## Testing privacy notes
 
 Cookooi sends the ingredients the user has, their craving, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
