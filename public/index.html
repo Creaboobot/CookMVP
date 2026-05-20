@@ -131,11 +131,11 @@
               generate recipe proposals. Do not enter sensitive personal information. Review
               ingredients, allergies, freshness, and cooking safety before making a meal.
             </p>
-            <p>Saved recipes stay in this browser unless you clear them.</p>
+            <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
             <p>
               Ratings, optional notes, and minimal generation metadata stay in this browser for
               testing export. Cookooi does not store raw ingredients, cravings, or free-text
-              preferences in feedback analytics.
+              preferences in session analytics.
             </p>
           </aside>
 
@@ -179,14 +179,14 @@
         <div class="section-title-row">
           <div>
             <p class="eyebrow">Testing data</p>
-            <h2 id="feedback-title">Feedback export</h2>
+            <h2 id="feedback-title">Session data export</h2>
           </div>
         </div>
         <p class="feedback-summary" id="feedback-summary" aria-live="polite"></p>
         <div class="feedback-data-actions">
-          <button class="secondary-button" id="export-feedback-button" type="button">Export JSON</button>
-          <button class="secondary-button" id="import-feedback-button" type="button">Import JSON</button>
-          <button class="text-button danger" id="clear-feedback-button" type="button">Clear feedback</button>
+          <button class="secondary-button" id="export-feedback-button" type="button">Export session JSON</button>
+          <button class="secondary-button" id="import-feedback-button" type="button">Import session JSON</button>
+          <button class="text-button danger" id="clear-feedback-button" type="button">Clear session data</button>
           <input id="import-feedback-input" type="file" accept="application/json,.json" hidden />
         </div>
         <p class="feedback-status" id="feedback-status" aria-live="polite"></p>
