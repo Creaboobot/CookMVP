@@ -50,6 +50,30 @@ Do not put provider keys in browser files. For local Wrangler testing, keep secr
 
 Cookooi sends the ingredients the user has, their craving, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
 
-Saved recipes are stored only in this browser's local storage during the current MVP.
+Saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, full saved recipe objects, saved timestamps, generation links, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, avoidances, or free-text cuisine/flavor preferences in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
 
-Feedback capture and lightweight analytics are also browser-local for the first testing pass. The stored feedback JSON includes an anonymous local session id, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, avoidances, or free-text cuisine/flavor preferences; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
+Current local storage keys:
+
+- `cookooi-session-v1`: anonymous local session id.
+- `cookooi-library-v1`: saved recipe entries with full recipe detail, saved timestamp, source/model metadata, and generation id when available.
+- `cookooi-feedback-v1`: generation records, recipe feedback, and saved-recipe markers.
+
+Use the in-app session data controls to export/import a single JSON file for product review. The exported shape is:
+
+```json
+{
+  "version": 1,
+  "exportedAt": "2026-05-20T09:00:00.000Z",
+  "sessionId": "cookooi-...",
+  "savedRecipes": [],
+  "feedbackData": {
+    "version": 1,
+    "sessionId": "cookooi-...",
+    "generations": [],
+    "feedback": [],
+    "savedRecipeIds": []
+  }
+}
+```
+
+The import action also accepts the Task 9 feedback-only JSON format so older test exports can still be reviewed. Clear actions remove browser-local saved recipes and/or session data only; exported files are the recovery path after clearing.

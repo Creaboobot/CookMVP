@@ -1,11 +1,7 @@
 import { buildRecipeRequestPayload } from "./recipe-payload.js";
 import {
-  clearFeedbackData,
-  exportFeedbackData,
-  feedbackSummary,
   getRecipeFeedback,
   getSessionId,
-  importFeedbackData,
   markRecipeSaved,
   recordGenerationFailure,
   recordGenerationSuccess,
@@ -17,10 +13,19 @@ import {
   recipeMetaItems,
   recipeSourceLabel,
 } from "./recipe-display.js";
+import {
+  clearSavedRecipes,
+  clearSessionData,
+  exportSessionData,
+  importSessionData,
+  readSavedRecipeEntries,
+  removeSavedRecipe,
+  saveRecipeToLibrary,
+  sessionSummary,
+} from "./session-store.js";
 
-const libraryKey = "cookooi-library-v1";
 const generationTimeoutMs = 30_000;
-const feedbackExportName = "cookooi-feedback.json";
+const sessionExportName = "cookooi-session-data.json";
 
 const els = {
   form: document.querySelector("#recipe-form"),
@@ -55,14 +60,6 @@ let recognition = null;
 let generationInFlight = false;
 let lastSubmittedPayload = null;
 const sessionId = getSessionId();
-
-function loadLibrary() {
-  return JSON.parse(localStorage.getItem(libraryKey) || "[]");
-}
-
-function saveLibrary(recipes) {
-  localStorage.setItem(libraryKey, JSON.stringify(recipes));
-}
 
 function listItems(container, items, emptyText) {
   const visibleItems = Array.isArray(items) ? items : [];
@@ -114,16 +111,14 @@ function renderProposal(recipeData) {
   renderRecipeDetails(fragment, recipe);
 
   saveButton.addEventListener("click", () => {
-    const library = loadLibrary();
-    if (!library.some((savedRecipe) => savedRecipe.title === recipe.title && savedRecipe.summary === recipe.summary)) {
-      saveLibrary([recipe, ...library]);
-    }
+    const generationId = recipe.createdAt ? `generation-${recipe.createdAt}` : "";
+    saveRecipeToLibrary({ recipe, sessionId, generationId });
     markRecipeSaved(recipe);
     saveButton.textContent = "Saved";
     saveButton.disabled = true;
     card.classList.add("saved");
     renderLibrary();
-    renderFeedbackSummary();
+    renderSessionSummary();
   });
 
   card.append(createFeedbackPanel(recipe));
@@ -183,7 +178,7 @@ function createFeedbackPanel(recipe) {
     try {
       saveRecipeFeedback({ recipe, rating: selectedRating, note: note.value });
       status.textContent = "Saved locally.";
-      renderFeedbackSummary();
+      renderSessionSummary();
     } catch (error) {
       status.textContent = error.message;
     }
@@ -332,7 +327,7 @@ function renderProposals(proposals) {
 }
 
 function renderLibrary() {
-  const library = loadLibrary();
+  const library = readSavedRecipeEntries();
 
   if (!library.length) {
     els.libraryList.innerHTML = `
@@ -345,13 +340,14 @@ function renderLibrary() {
   }
 
   els.libraryList.replaceChildren(
-    ...library.map((recipe) => {
-      const displayRecipe = normalizeRecipeForDisplay(recipe);
+    ...library.map((entry) => {
+      const displayRecipe = normalizeRecipeForDisplay(entry.recipe);
       const article = document.createElement("article");
       const details = document.createElement("div");
       const type = document.createElement("p");
       const title = document.createElement("h3");
       const summary = document.createElement("span");
+      const savedMeta = document.createElement("p");
       const detailToggle = document.createElement("details");
       const detailSummary = document.createElement("summary");
       const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
@@ -361,6 +357,8 @@ function renderLibrary() {
       type.textContent = displayRecipe.type;
       title.textContent = displayRecipe.title;
       summary.textContent = displayRecipe.summary;
+      savedMeta.className = "saved-recipe-meta";
+      savedMeta.textContent = savedRecipeMetaText(entry);
       detailToggle.className = "saved-recipe-details";
       detailSummary.textContent = "Recipe details";
       renderRecipeDetails(detailBody, displayRecipe);
@@ -368,17 +366,30 @@ function renderLibrary() {
       removeButton.type = "button";
       removeButton.textContent = "Remove";
       removeButton.addEventListener("click", () => {
-        saveLibrary(loadLibrary().filter((savedRecipe) => savedRecipe.id !== displayRecipe.id));
+        removeSavedRecipe(displayRecipe.id);
         renderLibrary();
+        renderSessionSummary();
       });
 
-      details.append(type, title, summary);
+      details.append(type, title, summary, savedMeta);
       detailToggle.append(detailSummary, detailBody);
       details.append(detailToggle);
       article.append(details, removeButton);
       return article;
     }),
   );
+}
+
+function savedRecipeMetaText(entry) {
+  const savedAt = entry.savedAt ? new Date(entry.savedAt) : null;
+  const savedDate = savedAt && !Number.isNaN(savedAt.valueOf()) ? savedAt.toLocaleString() : "";
+  const source = [entry.source === "fallback" ? "fallback" : entry.provider || entry.source, entry.model]
+    .filter(Boolean)
+    .join(" ");
+
+  return [savedDate ? `Saved ${savedDate}` : "", source ? `Source: ${source}` : "", entry.generationId ? "Linked to generation" : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 async function runGeneration(payload, statusMessage = "Generating three Cookooi recipe proposals...") {
@@ -395,7 +406,7 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
     activeProposals = generation.recipes.map((recipe, index) => mapServerRecipe(recipe, generation, index));
     recordGenerationSuccess({ payload, generation, recipes: activeProposals, sessionId });
     renderProposals(activeProposals);
-    renderFeedbackSummary();
+    renderSessionSummary();
     if (generation.source === "fallback") {
       setGenerationStatus(
         generation.warning
@@ -410,7 +421,7 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
     recordGenerationFailure({ payload, error, sessionId });
     activeProposals = [];
     renderProposals(activeProposals);
-    renderFeedbackSummary();
+    renderSessionSummary();
     setGenerationStatus(error.message, "error");
     setRetryVisible(Boolean(error.retryable && lastSubmittedPayload));
   } finally {
@@ -418,11 +429,11 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
   }
 }
 
-function renderFeedbackSummary() {
-  const summary = feedbackSummary();
+function renderSessionSummary() {
+  const summary = sessionSummary();
   const totalItems = summary.generationCount + summary.feedbackCount + summary.savedRecipeCount;
 
-  els.feedbackSummary.textContent = `${summary.feedbackCount} ratings, ${summary.generationCount} generation records, ${summary.savedRecipeCount} saved recipe markers.`;
+  els.feedbackSummary.textContent = `${summary.savedRecipeCount} saved recipes, ${summary.feedbackCount} ratings, ${summary.generationCount} generation records.`;
   els.exportFeedbackButton.disabled = totalItems === 0;
   els.clearFeedbackButton.disabled = totalItems === 0;
 }
@@ -432,26 +443,27 @@ function setFeedbackStatus(message, tone = "neutral") {
   els.feedbackStatus.dataset.tone = tone;
 }
 
-function exportFeedbackJson() {
-  const blob = new Blob([exportFeedbackData()], { type: "application/json" });
+function exportSessionJson() {
+  const blob = new Blob([exportSessionData()], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = feedbackExportName;
+  link.download = sessionExportName;
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  setFeedbackStatus("Feedback export is ready.", "success");
+  setFeedbackStatus("Session export is ready.", "success");
 }
 
-async function importFeedbackJson(file) {
+async function importSessionJson(file) {
   try {
-    importFeedbackData(JSON.parse(await file.text()));
-    renderFeedbackSummary();
+    importSessionData(JSON.parse(await file.text()));
+    renderLibrary();
+    renderSessionSummary();
     renderProposals(activeProposals);
-    setFeedbackStatus("Feedback data imported.", "success");
+    setFeedbackStatus("Session data imported.", "success");
   } catch (error) {
     setFeedbackStatus(error.message, "error");
   } finally {
@@ -525,11 +537,13 @@ els.clearResultsButton.addEventListener("click", () => {
 });
 
 els.clearLibraryButton.addEventListener("click", () => {
-  saveLibrary([]);
+  clearSavedRecipes();
   renderLibrary();
+  renderSessionSummary();
+  setFeedbackStatus("Saved recipes cleared.", "neutral");
 });
 
-els.exportFeedbackButton.addEventListener("click", exportFeedbackJson);
+els.exportFeedbackButton.addEventListener("click", exportSessionJson);
 
 els.importFeedbackButton.addEventListener("click", () => {
   els.importFeedbackInput.click();
@@ -538,17 +552,18 @@ els.importFeedbackButton.addEventListener("click", () => {
 els.importFeedbackInput.addEventListener("change", async () => {
   const [file] = els.importFeedbackInput.files || [];
   if (file) {
-    await importFeedbackJson(file);
+    await importSessionJson(file);
   }
 });
 
 els.clearFeedbackButton.addEventListener("click", () => {
-  clearFeedbackData();
-  renderFeedbackSummary();
+  clearSessionData();
+  renderLibrary();
+  renderSessionSummary();
   renderProposals(activeProposals);
-  setFeedbackStatus("Feedback data cleared.", "neutral");
+  setFeedbackStatus("Session data cleared.", "neutral");
 });
 
 setupVoiceInput();
 renderLibrary();
-renderFeedbackSummary();
+renderSessionSummary();
