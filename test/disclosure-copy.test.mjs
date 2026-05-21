@@ -10,7 +10,7 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   assert.match(html, /Do not enter sensitive personal information/);
   assert.match(html, /allergies, freshness, and cooking safety/);
   assert.match(html, /Saved recipes and test-session data stay in this browser/);
-  assert.match(html, /does not store raw ingredients, cravings, or free-text/);
+  assert.match(html, /does not store raw ingredients, cravings, follow-up questions/);
   assert.match(html, /Session data export/);
 });
 
@@ -49,4 +49,25 @@ test("includes a reviewable voice note transcript fallback without storing raw t
   assert.match(script, /parseVoiceNoteTranscript/);
   assert.match(script, /voiceConstraintOverrides/);
   assert.doesNotMatch(feedbackStore, /transcript/i);
+});
+
+test("includes per-meal follow-up UI without raw question analytics", async () => {
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+  const feedbackStore = await readFile(new URL("../public/feedback-store.js", import.meta.url), "utf8");
+  const templateStart = html.indexOf('<template id="proposal-template">');
+  const templateEnd = html.indexOf("</template>", templateStart);
+  const template = html.slice(templateStart, templateEnd);
+  const refinementIndex = template.indexOf('class="recipe-refinement"');
+  const saveIndex = template.indexOf('class="save-button"', refinementIndex);
+
+  assert.match(html, /class="refinement-form"/);
+  assert.match(html, /class="refinement-question"/);
+  assert.match(html, /class="refinement-result" hidden/);
+  assert.ok(refinementIndex > -1);
+  assert.ok(saveIndex > refinementIndex);
+  assert.match(script, /\/api\/recipes\/refine/);
+  assert.match(script, /recordRefinementSuccess/);
+  assert.match(feedbackStore, /questionLength/);
+  assert.doesNotMatch(feedbackStore, /questionText/);
 });

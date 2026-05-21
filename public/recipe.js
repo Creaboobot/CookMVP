@@ -5,11 +5,15 @@ import {
   markRecipeSaved,
   recordGenerationFailure,
   recordGenerationSuccess,
+  recordRefinementFailure,
+  recordRefinementSuccess,
   saveRecipeFeedback,
 } from "./feedback-store.js";
 import {
   mapServerRecipe,
   normalizeRecipeForDisplay,
+  normalizeRefinementForDisplay,
+  refinementFeasibilityLabel,
   recipeMetaItems,
   recipeOverviewCountLabel,
   recipeSourceLabel,
@@ -134,6 +138,252 @@ function renderRecipeOverview(root, recipe) {
   root.querySelector(".recipe-used-count").textContent = recipeOverviewCountLabel(recipe);
 }
 
+function setupRecipeRefinement(root, recipe) {
+  const form = root.querySelector(".refinement-form");
+  const question = root.querySelector(".refinement-question");
+  const submitButton = root.querySelector(".refinement-submit-button");
+  const status = root.querySelector(".refinement-status");
+  const result = root.querySelector(".refinement-result");
+  let refinementInFlight = false;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const questionText = cleanText(question.value);
+    if (!questionText) {
+      setRefinementStatus(status, "Add a question or requested change.", "error");
+      return;
+    }
+    if (refinementInFlight) {
+      return;
+    }
+
+    refinementInFlight = true;
+    submitButton.disabled = true;
+    submitButton.textContent = "Checking...";
+    setRefinementStatus(status, "Checking this meal...", "neutral");
+    result.hidden = true;
+
+    try {
+      const response = await requestRecipeRefinement(recipe, questionText);
+      recordRefinementSuccess({ recipe, question: questionText, response, sessionId });
+      renderRefinementResult(result, response);
+      renderSessionSummary();
+      setRefinementStatus(status, "Answer ready.", "success");
+    } catch (error) {
+      recordRefinementFailure({ recipe, question: questionText, error, sessionId });
+      renderSessionSummary();
+      setRefinementStatus(status, error.message, "error");
+    } finally {
+      refinementInFlight = false;
+      submitButton.disabled = false;
+      submitButton.textContent = "Ask Cookooi";
+    }
+  });
+}
+
+function setRefinementStatus(status, message, tone = "neutral") {
+  status.textContent = message;
+  status.dataset.tone = tone;
+}
+
+async function requestRecipeRefinement(recipe, question) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), generationTimeoutMs);
+  let response;
+
+  try {
+    response = await fetch("/api/recipes/refine", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-cookooi-session": sessionId },
+      body: JSON.stringify({
+        recipe: recipePayloadForRefinement(recipe),
+        question,
+        generation: recipeGenerationMetadata(recipe),
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw refinementError(
+        "client_timeout",
+        "Recipe follow-up took too long. Shorten the question and try again.",
+        true,
+      );
+    }
+    throw refinementError("network_error", "Cookooi could not reach the follow-up service. Please try again.", true);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw refinementError(
+      body.error || "request_failed",
+      friendlyRefinementMessage(body, response.status),
+      isRetryableRefinementError(body.error, response.status),
+    );
+  }
+  if (!body.refinement || typeof body.refinement !== "object") {
+    throw refinementError("unexpected_response", "Cookooi returned an unexpected follow-up response. Try again.", true);
+  }
+
+  return body;
+}
+
+function refinementError(code, message, retryable) {
+  const error = new Error(message);
+  error.code = code;
+  error.retryable = retryable;
+  return error;
+}
+
+function friendlyRefinementMessage(body, status) {
+  const messages = {
+    food_only: body.message,
+    unsafe_request: body.message,
+    invalid_request: body.message,
+    invalid_json: "Cookooi could not read the follow-up. Refresh the page and try again.",
+    provider_unavailable: "Recipe follow-up is not configured right now. You can try again later.",
+    provider_rate_limited: "Cookooi is handling a lot of recipe requests. Please retry shortly.",
+    provider_timeout: "Recipe follow-up took too long. Shorten the question and try again.",
+    invalid_ai_output: "Cookooi received a follow-up response it could not trust. Try again.",
+    provider_error: "Cookooi could not answer this follow-up right now. Please try again.",
+    rate_limited: body.message,
+  };
+
+  return (
+    messages[body.error] ||
+    body.message ||
+    (status >= 500 ? "Cookooi could not answer this follow-up right now. Please try again." : "Check the question and try again.")
+  );
+}
+
+function isRetryableRefinementError(code, status) {
+  return !["food_only", "invalid_request", "unsafe_request"].includes(code) && status !== 400;
+}
+
+function recipePayloadForRefinement(recipe) {
+  return {
+    title: recipe.title,
+    summary: recipe.summary,
+    usesFromAvailableItems: recipe.usesFromAvailableItems,
+    itemsStillNeeded: recipe.itemsStillNeeded,
+    steps: recipe.steps,
+    prepTimeMinutes: recipe.prepTimeMinutes,
+    cookTimeMinutes: recipe.cookTimeMinutes,
+    servings: recipe.servings,
+    difficulty: recipe.difficulty,
+    dietaryNotes: recipe.dietaryNotes,
+    allergyNotes: recipe.allergyNotes,
+    foodSafetyNotes: recipe.foodSafetyNotes,
+    substitutions: recipe.substitutions,
+    confidenceNotes: recipe.confidenceNotes,
+  };
+}
+
+function recipeGenerationMetadata(recipe) {
+  return {
+    source: recipe.source,
+    provider: recipe.provider,
+    model: recipe.model,
+    createdAt: recipe.createdAt,
+  };
+}
+
+function renderRefinementResult(container, response) {
+  const refinement = normalizeRefinementForDisplay(response);
+  const heading = document.createElement("div");
+  const title = document.createElement("h4");
+  const feasibility = document.createElement("span");
+  const explanation = document.createElement("p");
+  const source = document.createElement("p");
+
+  heading.className = "refinement-heading";
+  title.textContent = "Suggested adjustment";
+  feasibility.className = "refinement-feasibility";
+  feasibility.textContent = refinementFeasibilityLabel(refinement.feasibility);
+  explanation.textContent = refinement.explanation || "Cookooi returned a follow-up answer.";
+  source.className = "refinement-source";
+  source.textContent = recipeSourceLabel(refinement);
+
+  heading.append(title, feasibility);
+  container.replaceChildren(
+    heading,
+    explanation,
+    refinementSection("Ingredient changes", refinement.modifiedIngredients),
+    refinementSection("Step changes", refinement.modifiedSteps, "ol"),
+    refinementSection("Allergy notes", refinement.allergyNotes),
+    refinementSection("Food-safety notes", refinement.foodSafetyNotes),
+    refinementTextSection("Confidence notes", refinement.confidenceNotes),
+    source,
+  );
+
+  if (refinement.warning) {
+    const warning = document.createElement("p");
+    warning.className = "refinement-warning";
+    warning.textContent = refinement.warning;
+    container.append(warning);
+  }
+  if (refinement.proposedVariant) {
+    container.append(renderProposedVariant(refinement.proposedVariant));
+  }
+
+  container.hidden = false;
+}
+
+function refinementSection(title, items, listTag = "ul") {
+  const section = document.createElement("section");
+  const heading = document.createElement("h5");
+  const list = document.createElement(listTag);
+
+  section.className = "refinement-section";
+  heading.textContent = title;
+  listItems(list, items, "No specific change listed.");
+  section.append(heading, list);
+  return section;
+}
+
+function refinementTextSection(title, text) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h5");
+  const paragraph = document.createElement("p");
+
+  section.className = "refinement-section";
+  heading.textContent = title;
+  paragraph.textContent = text || "No confidence note provided.";
+  section.append(heading, paragraph);
+  return section;
+}
+
+function renderProposedVariant(variant) {
+  const section = document.createElement("section");
+  const title = document.createElement("h5");
+  const summary = document.createElement("p");
+  const meta = document.createElement("ul");
+  const note = document.createElement("p");
+
+  section.className = "variant-card";
+  title.textContent = variant.title;
+  summary.textContent = variant.summary;
+  meta.className = "recipe-meta";
+  listMetaItems(meta, recipeMetaItems(variant));
+  note.className = "variant-note";
+  note.textContent = "Original recipe remains unchanged.";
+
+  section.append(
+    title,
+    summary,
+    meta,
+    refinementSection("Variant items used", variant.usesFromAvailableItems),
+    refinementSection("Variant items still needed", variant.itemsStillNeeded),
+    refinementSection("Variant steps", variant.steps, "ol"),
+    note,
+  );
+  return section;
+}
+
 function setupRecipeDetailToggle(root) {
   const detailToggle = root.querySelector(".recipe-detail-toggle");
   const toggleText = root.querySelector(".recipe-toggle-text");
@@ -156,6 +406,7 @@ function renderProposal(recipeData) {
   fragment.querySelector(".recipe-summary").textContent = recipe.summary;
   renderRecipeOverview(fragment, recipe);
   renderRecipeDetails(fragment, recipe);
+  setupRecipeRefinement(fragment, recipe);
   setupRecipeDetailToggle(fragment);
 
   setSaveButtonState({ button: saveButton, card, saved: isRecipeSaved(recipe) });
@@ -500,6 +751,7 @@ function renderLibrary() {
 function cloneSavedRecipeDetailBody() {
   const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
   detailBody.querySelector(".recipe-save-row")?.remove();
+  detailBody.querySelector(".recipe-refinement")?.remove();
   return detailBody;
 }
 
@@ -560,9 +812,9 @@ async function runGeneration(
 
 function renderSessionSummary() {
   const summary = sessionSummary();
-  const totalItems = summary.generationCount + summary.feedbackCount + summary.savedRecipeCount;
+  const totalItems = summary.generationCount + summary.refinementCount + summary.feedbackCount + summary.savedRecipeCount;
 
-  els.feedbackSummary.textContent = `${summary.savedRecipeCount} saved recipes, ${summary.feedbackCount} ratings, ${summary.generationCount} generation records.`;
+  els.feedbackSummary.textContent = `${summary.savedRecipeCount} saved recipes, ${summary.feedbackCount} ratings, ${summary.generationCount} generation records, ${summary.refinementCount} follow-ups.`;
   els.exportFeedbackButton.disabled = totalItems === 0;
   els.clearFeedbackButton.disabled = totalItems === 0;
 }

@@ -276,8 +276,8 @@
             <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
             <p>
               Ratings, optional notes, and minimal generation metadata stay in this browser for
-              testing export. Cookooi does not store raw ingredients, cravings, or free-text
-              preferences in session analytics.
+              testing export. Cookooi does not store raw ingredients, cravings, follow-up questions,
+              or free-text preferences in session analytics.
             </p>
           </aside>
 
@@ -394,6 +394,24 @@
               <p class="confidence-note"></p>
             </div>
             <p class="recipe-source recipe-detail-source"></p>
+            <section class="recipe-refinement" aria-label="Meal follow-up">
+              <form class="refinement-form">
+                <label class="field">
+                  <span>Ask about this meal</span>
+                  <textarea
+                    class="refinement-question"
+                    rows="3"
+                    maxlength="500"
+                    placeholder="Example: Can I add greens to this soup?"
+                  ></textarea>
+                </label>
+                <div class="refinement-actions">
+                  <button class="secondary-button refinement-submit-button" type="submit">Ask Cookooi</button>
+                  <span class="refinement-status" aria-live="polite"></span>
+                </div>
+              </form>
+              <div class="refinement-result" hidden></div>
+            </section>
             <div class="recipe-save-row">
               <button class="save-button" type="button">Save</button>
             </div>
