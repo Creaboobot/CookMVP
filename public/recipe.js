@@ -27,6 +27,7 @@ import {
 
 const generationTimeoutMs = 30_000;
 const sessionExportName = "cookooi-session-data.json";
+const maxPreviousRecipeTitles = 12;
 
 const els = {
   form: document.querySelector("#recipe-form"),
@@ -39,6 +40,7 @@ const els = {
   cuisineOrFlavor: document.querySelector("#cuisine-input"),
   equipment: Array.from(document.querySelectorAll("input[name='equipment']")),
   generateButton: document.querySelector("#generate-button"),
+  tryMoreButton: document.querySelector("#try-more-button"),
   retryButton: document.querySelector("#retry-button"),
   generationStatus: document.querySelector("#generation-status"),
   proposalGrid: document.querySelector("#proposal-grid"),
@@ -221,6 +223,11 @@ function setRetryVisible(isVisible) {
   els.retryButton.disabled = !isVisible || generationInFlight;
 }
 
+function setTryMoreVisible(isVisible) {
+  els.tryMoreButton.hidden = !isVisible;
+  els.tryMoreButton.disabled = !isVisible || generationInFlight || !lastSubmittedPayload;
+}
+
 function setGenerating(isGenerating) {
   generationInFlight = isGenerating;
   els.form.setAttribute("aria-busy", String(isGenerating));
@@ -228,6 +235,7 @@ function setGenerating(isGenerating) {
   els.generateButton.disabled = isGenerating;
   els.generateButton.textContent = isGenerating ? "Generating..." : "Get three meal ideas";
   els.retryButton.disabled = isGenerating || !lastSubmittedPayload;
+  els.tryMoreButton.disabled = isGenerating || !activeProposals.length || !lastSubmittedPayload;
 }
 
 function buildCurrentRecipePayload() {
@@ -241,6 +249,21 @@ function buildCurrentRecipePayload() {
     cuisineOrFlavor: els.cuisineOrFlavor.value,
     equipment: els.equipment.filter((input) => input.checked).map((input) => input.value),
   });
+}
+
+function buildRegenerationPayload(payload, proposals) {
+  const previousRecipeTitles = [
+    ...(Array.isArray(payload?.previousRecipeTitles) ? payload.previousRecipeTitles : []),
+    ...proposals.map((recipe) => recipe.title),
+  ]
+    .map(cleanText)
+    .filter(Boolean);
+
+  return {
+    ...payload,
+    constraints: { ...(payload.constraints || {}) },
+    previousRecipeTitles: [...new Set(previousRecipeTitles)].slice(-maxPreviousRecipeTitles),
+  };
 }
 
 async function requestRecipeGeneration(payload) {
@@ -327,10 +350,12 @@ function renderProposals(proposals) {
         <p>Add ingredients to generate three starter recipes.</p>
       </article>
     `;
+    setTryMoreVisible(false);
     return;
   }
 
   els.proposalGrid.replaceChildren(...proposals.map(renderProposal));
+  setTryMoreVisible(true);
 }
 
 function renderLibrary() {
@@ -405,7 +430,11 @@ function savedRecipeMetaText(entry) {
     .join(" - ");
 }
 
-async function runGeneration(payload, statusMessage = "Generating three Cookooi recipe proposals...") {
+async function runGeneration(
+  payload,
+  statusMessage = "Generating three Cookooi recipe proposals...",
+  { preserveProposalsOnError = false } = {},
+) {
   if (generationInFlight) {
     return;
   }
@@ -432,7 +461,9 @@ async function runGeneration(payload, statusMessage = "Generating three Cookooi 
     }
   } catch (error) {
     recordGenerationFailure({ payload, error, sessionId });
-    activeProposals = [];
+    if (!preserveProposalsOnError) {
+      activeProposals = [];
+    }
     renderProposals(activeProposals);
     renderSessionSummary();
     setGenerationStatus(error.message, "error");
@@ -538,6 +569,17 @@ els.retryButton.addEventListener("click", async () => {
   await runGeneration(lastSubmittedPayload, "Retrying recipe generation...");
 });
 
+els.tryMoreButton.addEventListener("click", async () => {
+  if (!lastSubmittedPayload || generationInFlight || !activeProposals.length) {
+    return;
+  }
+
+  lastSubmittedPayload = buildRegenerationPayload(lastSubmittedPayload, activeProposals);
+  await runGeneration(lastSubmittedPayload, "Finding three more Cookooi meal ideas...", {
+    preserveProposalsOnError: true,
+  });
+});
+
 els.dictateButton.addEventListener("click", () => {
   recognition?.start();
 });
@@ -581,3 +623,7 @@ els.clearFeedbackButton.addEventListener("click", () => {
 setupVoiceInput();
 renderLibrary();
 renderSessionSummary();
+
+function cleanText(value) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}

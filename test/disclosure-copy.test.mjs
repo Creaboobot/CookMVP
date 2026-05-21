@@ -13,3 +13,14 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   assert.match(html, /does not store raw ingredients, cravings, or free-text/);
   assert.match(html, /Session data export/);
 });
+
+test("includes a bounded three-more recipe action after results", async () => {
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+
+  assert.match(html, /id="try-more-button"/);
+  assert.match(html, />Try three more</);
+  assert.match(script, /previousRecipeTitles/);
+  assert.match(script, /Finding three more Cookooi meal ideas/);
+  assert.match(script, /maxPreviousRecipeTitles = 12/);
+});

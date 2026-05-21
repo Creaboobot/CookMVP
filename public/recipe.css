@@ -309,6 +309,12 @@ h1 {
   gap: 12px;
 }
 
+.result-followup {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 .primary-button,
 .secondary-button,
 .save-button {
@@ -580,6 +586,10 @@ h1 {
   .save-button,
   .feedback-rating-button {
     width: 100%;
+  }
+
+  .result-followup {
+    justify-content: stretch;
   }
 
   .recipe-save-row {

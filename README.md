@@ -1,6 +1,6 @@
 # Cookooi
 
-Cookooi is a local recipe prototype. Enter ingredients you already have, optionally add what you are craving, and the app suggests three meal ideas with used ingredients and items still needed.
+Cookooi is a local recipe prototype. Enter ingredients you already have, optionally add what you are craving, and the app suggests three meal ideas with used ingredients and items still needed. If none fit, use Try three more to request another set without re-entering the same details.
 
 ## Run
 
@@ -126,11 +126,12 @@ Checklist:
 3. Enter ingredients the tester has, optionally add a craving, then add at least one avoidance, servings, available time, cuisine or flavor, and available equipment.
 4. Generate recipes and confirm exactly three proposals appear.
 5. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
-6. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
-7. Rate one proposal, add an optional note, refresh the page, and confirm the session summary still counts the saved recipe, rating, and generation record.
-8. Export session JSON, clear session data, import the exported JSON, and confirm the saved recipe and feedback return.
-9. Test a known error path by running without `OPENAI_API_KEY` and confirm the message says generation is not configured instead of showing fake success.
-10. Check desktop and mobile widths for readable controls, cards, saved recipe details, and session data actions.
+6. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
+7. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
+8. Rate one proposal, add an optional note, refresh the page, and confirm the session summary still counts the saved recipe, rating, and generation record.
+9. Export session JSON, clear session data, import the exported JSON, and confirm the saved recipe and feedback return.
+10. Test a known error path by running without `OPENAI_API_KEY` and confirm the message says generation is not configured instead of showing fake success.
+11. Check desktop and mobile widths for readable controls, cards, saved recipe details, and session data actions.
 
 If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also run one OpenAI-backed generation and confirm the successful status says the proposals are AI-generated. If no provider key is configured, keep `COOKOOI_ENABLE_FALLBACK=true` for local workflow testing and record OpenAI-backed generation as not configured for that run.
 
@@ -139,7 +140,7 @@ If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also ru
 Use this short script for the first testing round:
 
 ```text
-Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Add a few ingredients, optionally add what you are craving, and include any allergies or ingredients you avoid. After the recipes appear, compare the items used and items still needed, open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
+Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Add a few ingredients, optionally add what you are craving, and include any allergies or ingredients you avoid. After the recipes appear, compare the items used and items still needed; if none fit, click Try three more for another set. Open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
 ```
 
 After each test session, use `Export session JSON` before clearing the browser-local session data.

@@ -3,6 +3,8 @@ const MAX_INGREDIENTS_TEXT_CHARS = 1000;
 const MAX_CRAVING_CHARS = 200;
 const MAX_AVOID_CHARS = 500;
 const MAX_CUISINE_OR_FLAVOR_CHARS = 120;
+const MAX_PREVIOUS_RECIPE_TITLES = 12;
+const MAX_PREVIOUS_RECIPE_TITLE_CHARS = 90;
 const MAX_USER_PROMPT_CHARS = 1600;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 20;
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -67,6 +69,23 @@ const unsafeClaims = [
   "guaranteed safe",
   "medically appropriate",
   "nutritionally guaranteed",
+];
+const fallbackTitleOptions = [
+  "Quick Available-Ingredient Skillet",
+  "Flexible Cookooi Bowl",
+  "Simple Available-Item Plate",
+  "Fast Mix-and-Match Meal",
+  "Easy Cookooi Meal Bowl",
+  "Quick Flexible Meal",
+  "Warm Available-Item Bowl",
+  "Simple Savory Supper",
+  "Easy Available-Item Meal",
+  "Quick Savory Plate",
+  "Flexible Cookooi Meal",
+  "Simple Bright Meal Bowl",
+  "Easy Weeknight Cookooi Plate",
+  "Quick Comfort Meal",
+  "Flexible No-Fuss Dinner",
 ];
 
 export async function handleGenerateRecipeRequest(request, env = {}, options = {}) {
@@ -197,6 +216,11 @@ function validateRecipeRequest(payload) {
   }
   const craving = submittedCraving || "flexible meal ideas";
 
+  const previousTitles = normalizePreviousRecipeTitles(payload.previousRecipeTitles);
+  if (!previousTitles.ok) {
+    return previousTitles;
+  }
+
   const constraints = payload.constraints === undefined ? {} : payload.constraints;
   if (!constraints || typeof constraints !== "object" || Array.isArray(constraints)) {
     return invalid("Constraints must be an object when provided.");
@@ -273,7 +297,11 @@ function validateRecipeRequest(payload) {
     normalizedConstraints.equipment = [...new Set(equipment)];
   }
 
-  const promptCharacters = countUserPromptCharacters({ ingredientsText, craving, constraints: normalizedConstraints });
+  const promptCharacters = countUserPromptCharacters({
+    ingredientsText,
+    craving,
+    constraints: normalizedConstraints,
+  });
   if (promptCharacters > MAX_USER_PROMPT_CHARS) {
     return invalid(
       `Your request is too long for this test build. Shorten available items, optional craving, or preferences to ${MAX_USER_PROMPT_CHARS} characters total.`,
@@ -285,9 +313,32 @@ function validateRecipeRequest(payload) {
     value: {
       ingredientsText,
       craving,
+      previousRecipeTitles: previousTitles.value,
       constraints: normalizedConstraints,
     },
   };
+}
+
+function normalizePreviousRecipeTitles(value) {
+  if (value === undefined) {
+    return { ok: true, value: [] };
+  }
+  if (!Array.isArray(value)) {
+    return invalid("Previous recipe titles must be a list when provided.");
+  }
+  if (value.length > MAX_PREVIOUS_RECIPE_TITLES) {
+    return invalid(`Previous recipe titles must include ${MAX_PREVIOUS_RECIPE_TITLES} items or fewer.`);
+  }
+  if (value.some((title) => typeof title !== "string")) {
+    return invalid("Previous recipe titles must be text.");
+  }
+
+  const titles = [...new Set(value.map(cleanText).filter(Boolean))];
+  if (titles.some((title) => title.length > MAX_PREVIOUS_RECIPE_TITLE_CHARS)) {
+    return invalid(`Previous recipe titles must be ${MAX_PREVIOUS_RECIPE_TITLE_CHARS} characters or fewer.`);
+  }
+
+  return { ok: true, value: titles };
 }
 
 function checkRateLimit(request, env = {}, options = {}) {
@@ -437,6 +488,8 @@ function validateRecipeResponse(payload, request) {
   }
 
   const avoidTerms = splitAvoidTerms(request.constraints.avoid);
+  const previousTitles = new Set((request.previousRecipeTitles || []).map(comparableTitle));
+  const seenTitles = new Set();
   const recipes = [];
 
   for (const recipe of payload.recipes) {
@@ -444,6 +497,12 @@ function validateRecipeResponse(payload, request) {
     if (!normalized) {
       return { ok: false };
     }
+
+    const normalizedTitle = comparableTitle(normalized.title);
+    if (!normalizedTitle || previousTitles.has(normalizedTitle) || seenTitles.has(normalizedTitle)) {
+      return { ok: false };
+    }
+    seenTitles.add(normalizedTitle);
 
     if (recipeSuggestsAvoidedTerm(normalized, avoidTerms)) {
       return { ok: false };
@@ -524,6 +583,7 @@ function createSystemPrompt() {
     "Generate exactly three distinct recipe proposals.",
     "Prefer items the user has and keep items still needed practical and short.",
     "Respect avoidances, allergies, diet, available time, servings, and equipment.",
+    "When previousRecipeTitles are provided, avoid those exact titles and generate meaningfully different alternatives.",
     "Treat avoidances as ingredients the user cannot use and state that cross-contamination cannot be assessed when allergies are provided.",
     "Include practical substitutions and concise food-safety and allergy notes.",
     "Never claim a recipe is allergen-free, medically appropriate, nutritionally guaranteed, or definitely safe.",
@@ -597,19 +657,40 @@ function createFallbackResponse(request, model, warning) {
     .slice(0, 5);
   const used = ingredients.length ? ingredients : ["available items that fit your constraints"];
   const servings = request.constraints.servings || 2;
+  const titles = fallbackTitles(request.previousRecipeTitles);
 
   return {
-    recipes: [
-      fallbackRecipe("Quick Available-Ingredient Skillet", request.craving, used, servings, "easy", request.constraints),
-      fallbackRecipe("Flexible Cookooi Bowl", request.craving, used, servings, "easy", request.constraints),
-      fallbackRecipe("Simple Pantry Plate", request.craving, used, servings, "easy", request.constraints),
-    ],
+    recipes: titles.map((title) => fallbackRecipe(title, request.craving, used, servings, "easy", request.constraints)),
     source: "fallback",
     provider: "fallback",
     model: model || "deterministic-fallback",
     createdAt: new Date().toISOString(),
     warning,
   };
+}
+
+function fallbackTitles(previousRecipeTitles = []) {
+  const previous = new Set(previousRecipeTitles.map(comparableTitle));
+  const selected = [];
+
+  for (const title of fallbackTitleOptions) {
+    const normalized = comparableTitle(title);
+    if (!previous.has(normalized) && !selected.some((selectedTitle) => comparableTitle(selectedTitle) === normalized)) {
+      selected.push(title);
+    }
+    if (selected.length === 3) {
+      return selected;
+    }
+  }
+
+  for (let index = 1; selected.length < 3; index += 1) {
+    const title = `Flexible Cookooi Meal Idea ${index}`;
+    if (!previous.has(comparableTitle(title))) {
+      selected.push(title);
+    }
+  }
+
+  return selected;
 }
 
 function fallbackRecipe(title, craving, used, servings, difficulty, constraints) {
@@ -717,6 +798,10 @@ function matchesAvoidedTerm(value, avoidTerms) {
     const variants = normalizedTerm.endsWith("s") ? [normalizedTerm, normalizedTerm.slice(0, -1)] : [normalizedTerm];
     return variants.some((variant) => variant && normalizedValue.includes(variant));
   });
+}
+
+function comparableTitle(value) {
+  return cleanText(value).toLowerCase();
 }
 
 function validString(value, maxLength) {

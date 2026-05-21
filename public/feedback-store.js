@@ -193,6 +193,7 @@ export function summarizeGenerationContext(payload = {}) {
   return {
     availableItemCount: countAvailableItems(payload.ingredientsText),
     cravingLength: cleanText(payload.craving).length,
+    previousRecipeTitleCount: cleanTextList(payload.previousRecipeTitles).length,
     constraints: {
       hasAvoidances: Boolean(cleanText(constraints.avoid)),
       diet: cleanSelectValue(constraints.diet),
@@ -259,6 +260,7 @@ function normalizeContext(context = {}) {
   return {
     availableItemCount: positiveInteger(context.availableItemCount) || 0,
     cravingLength: positiveInteger(context.cravingLength) || 0,
+    previousRecipeTitleCount: positiveInteger(context.previousRecipeTitleCount) || 0,
     constraints: {
       hasAvoidances: Boolean(context.constraints?.hasAvoidances),
       diet: cleanSelectValue(context.constraints?.diet),

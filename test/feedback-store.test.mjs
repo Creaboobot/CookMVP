@@ -18,6 +18,7 @@ test("summarizes generation context without storing raw tester input", () => {
   const summary = summarizeGenerationContext({
     ingredientsText: "eggs, spinach and rice",
     craving: "quick spicy dinner",
+    previousRecipeTitles: ["Spinach Rice Skillet", "Egg Rice Bowl"],
     constraints: {
       avoid: "peanuts",
       diet: "vegetarian",
@@ -31,6 +32,7 @@ test("summarizes generation context without storing raw tester input", () => {
   assert.deepEqual(summary, {
     availableItemCount: 3,
     cravingLength: 18,
+    previousRecipeTitleCount: 2,
     constraints: {
       hasAvoidances: true,
       diet: "vegetarian",
