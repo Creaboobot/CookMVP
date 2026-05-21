@@ -978,6 +978,14 @@ async function importSessionJson(file) {
 function setupVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+  if (isAppleMobileBrowser()) {
+    els.voiceStatus.textContent =
+      "On iPhone, use the keyboard microphone in the transcript box, then tap Parse note.";
+    els.dictateButton.disabled = true;
+    els.dictateButton.textContent = "Use keyboard mic";
+    return;
+  }
+
   if (!SpeechRecognition) {
     els.voiceStatus.textContent = "Speech capture unavailable here. Use your keyboard microphone or paste a note below.";
     els.dictateButton.disabled = true;
@@ -1050,6 +1058,10 @@ function voiceRecognitionErrorMessage(errorCode) {
   };
 
   return messages[errorCode] || "Voice capture did not work here. Use your keyboard microphone or paste a note below.";
+}
+
+function isAppleMobileBrowser() {
+  return /iPad|iPhone|iPod/.test(window.navigator.userAgent) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
 }
 
 els.form.addEventListener("submit", async (event) => {

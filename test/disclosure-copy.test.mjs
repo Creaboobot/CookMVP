@@ -55,6 +55,8 @@ test("gives a visible fallback when browser speech capture fails", async () => {
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
 
   assert.match(script, /voiceRecognitionErrorMessage/);
+  assert.match(script, /isAppleMobileBrowser/);
+  assert.match(script, /On iPhone, use the keyboard microphone/);
   assert.match(script, /recognition\.addEventListener\("error"/);
   assert.match(script, /recognition\.addEventListener\("end"/);
   assert.match(script, /keyboard microphone or paste a note below/);
