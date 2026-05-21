@@ -31,8 +31,14 @@ import {
 } from "./session-store.js";
 import { readRecipeSettings, resetRecipeSettings, saveRecipeSettings } from "./settings-store.js";
 import { parseVoiceNoteTranscript } from "./voice-note-parser.js";
+import {
+  microphonePermissionWasBlocked,
+  selectVoiceRecordingMimeType,
+  transcribeVoiceBlob,
+} from "./voice-recorder.js";
 
 const generationTimeoutMs = 30_000;
+const maxVoiceRecordingMs = 60_000;
 const sessionExportName = "cookooi-session-data.json";
 const maxPreviousRecipeTitles = 12;
 
@@ -87,13 +93,18 @@ const els = {
 };
 
 let activeProposals = [];
-let recognition = null;
 let generationInFlight = false;
 let lastSubmittedPayload = null;
 let currentRecipeSettings = readRecipeSettings();
 let voiceReviewActive = false;
-let recognitionStarted = false;
-let recognitionHadResult = false;
+let voiceRecorder = null;
+let voiceRecorderStream = null;
+let voiceRecorderChunks = [];
+let voiceRecordingMimeType = "";
+let voiceRecordingStopTimer = null;
+let voiceRecorderSupported = false;
+let voiceRecordingActive = false;
+let voiceTranscriptionActive = false;
 const sessionId = getSessionId();
 
 function listItems(container, items, emptyText) {
@@ -892,7 +903,9 @@ function clearVoiceNote() {
     input.checked = false;
   }
   setVoiceReviewStatus("", "neutral");
-  els.voiceStatus.textContent = recognition ? "Voice input ready." : "Speech capture unavailable; paste a transcript below.";
+  els.voiceStatus.textContent = voiceRecorderSupported
+    ? "Ready to record. Tap Record, then Stop."
+    : "In-app recording is unavailable here. Paste a transcript below.";
 }
 
 function settingsFieldValues() {
@@ -976,80 +989,135 @@ async function importSessionJson(file) {
 }
 
 function setupVoiceInput() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  voiceRecordingMimeType = selectVoiceRecordingMimeType(window.MediaRecorder);
+  voiceRecorderSupported = Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
 
-  if (!SpeechRecognition) {
-    els.voiceStatus.textContent = "Speech capture unavailable here. Use your keyboard microphone or paste a note below.";
+  if (!voiceRecorderSupported) {
+    els.voiceStatus.textContent = "In-app recording is unavailable here. Paste a transcript below.";
     els.dictateButton.disabled = true;
-    els.dictateButton.textContent = "Use keyboard mic";
+    els.dictateButton.textContent = "Recording unavailable";
     return;
   }
 
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.lang = "en-US";
-
-  recognition.addEventListener("start", () => {
-    recognitionStarted = true;
-    recognitionHadResult = false;
-    els.voiceStatus.textContent = "Listening for one note...";
-    els.dictateButton.textContent = "Listening...";
-  });
-
-  recognition.addEventListener("result", (event) => {
-    const transcript = Array.from(event.results)
-      .map((result) => result[0].transcript)
-      .join(" ");
-    recognitionHadResult = Boolean(transcript.trim());
-    els.voiceNote.value = [els.voiceNote.value.trim(), transcript].filter(Boolean).join(" ");
-    parseVoiceNote();
-  });
-
-  recognition.addEventListener("error", (event) => {
-    recognitionStarted = false;
-    recognitionHadResult = false;
-    els.dictateButton.textContent = "Start voice note";
-    els.voiceStatus.textContent = voiceRecognitionErrorMessage(event.error);
-  });
-
-  recognition.addEventListener("end", () => {
-    els.voiceStatus.textContent =
-      recognitionStarted && recognitionHadResult
-        ? "Voice note ready to review."
-        : "No voice note was captured. Check microphone permission, use your keyboard microphone, or paste a note below.";
-    recognitionStarted = false;
-    els.dictateButton.textContent = "Start voice note";
-  });
-
-  els.voiceStatus.textContent = "Voice input ready.";
+  els.dictateButton.textContent = "Record voice note";
+  els.voiceStatus.textContent = "Ready to record. Tap Record, then Stop.";
 }
 
-function startVoiceRecognition() {
-  if (!recognition) {
-    els.voiceStatus.textContent = "Speech capture unavailable here. Use your keyboard microphone or paste a note below.";
+async function startVoiceRecording() {
+  if (!voiceRecorderSupported || voiceTranscriptionActive) {
+    els.voiceStatus.textContent = "In-app recording is unavailable here. Paste a transcript below.";
     return;
   }
+
+  els.dictateButton.disabled = true;
+  els.voiceStatus.textContent = "Requesting microphone permission...";
 
   try {
-    recognition.start();
-  } catch {
-    els.voiceStatus.textContent = "Voice capture could not start. Use your keyboard microphone or paste a note below.";
-    els.dictateButton.textContent = "Start voice note";
+    voiceRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorderOptions = voiceRecordingMimeType ? { mimeType: voiceRecordingMimeType } : undefined;
+    try {
+      voiceRecorder = new MediaRecorder(voiceRecorderStream, recorderOptions);
+    } catch (error) {
+      if (!recorderOptions) {
+        throw error;
+      }
+      voiceRecordingMimeType = "";
+      voiceRecorder = new MediaRecorder(voiceRecorderStream);
+    }
+    voiceRecorderChunks = [];
+
+    voiceRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) {
+        voiceRecorderChunks.push(event.data);
+      }
+    });
+    voiceRecorder.addEventListener("stop", finishVoiceRecording, { once: true });
+    voiceRecorder.addEventListener("error", () => {
+      stopVoiceRecorderStream();
+      resetVoiceRecorderButton();
+      els.voiceStatus.textContent = "Recording failed. Try again or paste a transcript below.";
+    });
+
+    voiceRecorder.start();
+    voiceRecordingActive = true;
+    els.dictateButton.disabled = false;
+    els.dictateButton.textContent = "Stop recording";
+    els.voiceStatus.textContent = "Recording short voice note...";
+    voiceRecordingStopTimer = window.setTimeout(() => {
+      if (voiceRecordingActive) {
+        els.voiceStatus.textContent = "One-minute voice note limit reached. Transcribing now...";
+        stopVoiceRecording();
+      }
+    }, maxVoiceRecordingMs);
+  } catch (error) {
+    stopVoiceRecorderStream();
+    resetVoiceRecorderButton();
+    els.voiceStatus.textContent = microphonePermissionWasBlocked(error)
+      ? "Microphone permission was blocked. Allow microphone access or paste a transcript below."
+      : "Cookooi could not start recording. Check the microphone or paste a transcript below.";
   }
 }
 
-function voiceRecognitionErrorMessage(errorCode) {
-  const messages = {
-    "not-allowed": "Microphone access was blocked. Allow microphone access, use your keyboard microphone, or paste a note below.",
-    "service-not-allowed": "Speech capture is not available in this browser. Use your keyboard microphone or paste a note below.",
-    "audio-capture": "Cookooi could not access the microphone. Check the device microphone or paste a note below.",
-    network: "Speech capture needs browser speech service access. Use your keyboard microphone or paste a note below.",
-    "no-speech": "No speech was captured. Try again, use your keyboard microphone, or paste a note below.",
-    aborted: "Voice capture stopped. Try again or paste a note below.",
-  };
+function stopVoiceRecording() {
+  if (!voiceRecorder || voiceRecorder.state === "inactive") {
+    return;
+  }
 
-  return messages[errorCode] || "Voice capture did not work here. Use your keyboard microphone or paste a note below.";
+  els.dictateButton.disabled = true;
+  els.dictateButton.textContent = "Preparing...";
+  els.voiceStatus.textContent = "Preparing voice note for transcription...";
+  voiceRecorder.stop();
+}
+
+async function finishVoiceRecording() {
+  window.clearTimeout(voiceRecordingStopTimer);
+  voiceRecordingStopTimer = null;
+  voiceRecordingActive = false;
+  stopVoiceRecorderStream();
+
+  const audioBlob = new Blob(voiceRecorderChunks, {
+    type: voiceRecorder?.mimeType || voiceRecordingMimeType || "audio/webm",
+  });
+  voiceRecorderChunks = [];
+  voiceRecorder = null;
+
+  if (!audioBlob.size) {
+    resetVoiceRecorderButton();
+    els.voiceStatus.textContent = "No audio was captured. Try again or paste a transcript below.";
+    return;
+  }
+
+  voiceTranscriptionActive = true;
+  els.dictateButton.disabled = true;
+  els.dictateButton.textContent = "Transcribing...";
+  els.voiceStatus.textContent = "Transcribing voice note...";
+
+  try {
+    const result = await transcribeVoiceBlob({ blob: audioBlob, sessionId });
+    els.voiceNote.value = [els.voiceNote.value.trim(), result.transcript].filter(Boolean).join(" ");
+    parseVoiceNote();
+    els.voiceStatus.textContent = "Transcript ready. Review the parsed fields before generating.";
+  } catch (error) {
+    els.voiceStatus.textContent = error.message;
+  } finally {
+    voiceTranscriptionActive = false;
+    resetVoiceRecorderButton();
+  }
+}
+
+function stopVoiceRecorderStream() {
+  window.clearTimeout(voiceRecordingStopTimer);
+  voiceRecordingStopTimer = null;
+  for (const track of voiceRecorderStream?.getTracks?.() || []) {
+    track.stop();
+  }
+  voiceRecorderStream = null;
+  voiceRecordingActive = false;
+}
+
+function resetVoiceRecorderButton() {
+  els.dictateButton.disabled = !voiceRecorderSupported;
+  els.dictateButton.textContent = voiceRecorderSupported ? "Record voice note" : "Recording unavailable";
 }
 
 els.form.addEventListener("submit", async (event) => {
@@ -1082,8 +1150,13 @@ els.tryMoreButton.addEventListener("click", async () => {
   });
 });
 
-els.dictateButton.addEventListener("click", () => {
-  startVoiceRecognition();
+els.dictateButton.addEventListener("click", async () => {
+  if (voiceRecordingActive) {
+    stopVoiceRecording();
+    return;
+  }
+
+  await startVoiceRecording();
 });
 
 els.parseVoiceButton.addEventListener("click", parseVoiceNote);

@@ -137,9 +137,13 @@ h1 {
 .voice-status {
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  border-radius: 999px;
+  border-radius: 12px;
   color: var(--primary-dark);
   font-size: 13px;
+  line-height: 1.4;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 8px 12px;
 }
 
