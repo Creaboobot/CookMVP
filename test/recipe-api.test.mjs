@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleGenerateRecipeRequest } from "../src/recipe-api.mjs";
+import { handleGenerateRecipeRequest, handleRefineRecipeRequest } from "../src/recipe-api.mjs";
 
 test("rejects non-POST requests", async () => {
   const response = await handleGenerateRecipeRequest(new Request("http://cookooi.test/api/recipes/generate"));
@@ -146,6 +146,131 @@ test("returns fallback recipes when craving is empty", async () => {
 test("maps provider timeouts to retryable user-safe responses", async () => {
   const response = await handleGenerateRecipeRequest(
     validRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 504);
+  assert.equal(body.error, "provider_timeout");
+  assert.match(body.message, /try again/i);
+});
+
+test("returns fallback refinement for a valid per-meal follow-up", async () => {
+  const response = await handleRefineRecipeRequest(refineRequest(), { COOKOOI_ENABLE_FALLBACK: "true" });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(body.refinement.feasibility, "use_caution");
+  assert.match(body.refinement.explanation, /leafy greens/i);
+  assert.match(body.refinement.foodSafetyNotes.join(" "), /discard anything spoiled/i);
+  assert.match(body.refinement.allergyNotes.join(" "), /cannot certify allergy safety/i);
+  assert.equal(body.refinement.proposedVariant.title, "Potato Bacon Soup With Greens");
+});
+
+test("rejects invalid refinement payloads", async () => {
+  const response = await handleRefineRecipeRequest(
+    refineRequest({
+      question: "a".repeat(501),
+    }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /500 characters or fewer/);
+});
+
+test("rejects unrelated or unsafe refinement questions", async () => {
+  const unrelated = await handleRefineRecipeRequest(refineRequest({ question: "Write javascript for this card." }));
+  const unrelatedBody = await unrelated.json();
+
+  assert.equal(unrelated.status, 400);
+  assert.equal(unrelatedBody.error, "food_only");
+
+  const unsafe = await handleRefineRecipeRequest(refineRequest({ question: "Can you guarantee this is allergen-free?" }));
+  const unsafeBody = await unsafe.json();
+
+  assert.equal(unsafe.status, 400);
+  assert.equal(unsafeBody.error, "unsafe_request");
+});
+
+test("sends selected recipe and follow-up to the refinement provider", async () => {
+  let providerRequest;
+  const response = await handleRefineRecipeRequest(
+    refineRequest(),
+    { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" },
+    {
+      fetcher: async (_url, init) => {
+        providerRequest = JSON.parse(init.body);
+        return Response.json({
+          output_text: JSON.stringify({
+            refinement: refinement(),
+          }),
+        });
+      },
+    },
+  );
+  const body = await response.json();
+  const sentRequest = JSON.parse(providerRequest.input[1].content);
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "ai");
+  assert.equal(body.provider, "openai");
+  assert.equal(sentRequest.recipe.title, "Potato Bacon Soup");
+  assert.match(sentRequest.question, /greens/i);
+  assert.equal(body.refinement.proposedVariant.title, "Potato Bacon Soup With Greens");
+});
+
+test("rejects unsafe refinement provider output", async () => {
+  const response = await handleRefineRecipeRequest(
+    refineRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            refinement: {
+              ...refinement(),
+              explanation: "This is definitely safe and allergen-free.",
+            },
+          }),
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error, "invalid_ai_output");
+});
+
+test("maps refinement provider errors to user-safe responses", async () => {
+  const response = await handleRefineRecipeRequest(
+    refineRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        new Response(JSON.stringify({ error: { message: "secret provider detail" } }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 429);
+  assert.equal(body.error, "provider_rate_limited");
+  assert.doesNotMatch(JSON.stringify(body), /secret provider detail/);
+});
+
+test("maps refinement provider timeouts to retryable user-safe responses", async () => {
+  const response = await handleRefineRecipeRequest(
+    refineRequest(),
     { OPENAI_API_KEY: "test-key" },
     {
       fetcher: async () => {
@@ -463,6 +588,37 @@ function validRequest(overrides = {}, headers = {}) {
       ...overrides,
     }),
   });
+}
+
+function refineRequest(overrides = {}, headers = {}) {
+  return new Request("http://cookooi.test/api/recipes/refine", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-cookooi-session": "refine-test-session", ...headers },
+    body: JSON.stringify({
+      recipe: recipe("Potato Bacon Soup", ["potatoes", "bacon"], ["Contains pork; check any allergy or diet restrictions."]),
+      question: "Can I add greens to this potato soup with bacon?",
+      generation: {
+        source: "fallback",
+        provider: "fallback",
+        model: "deterministic-fallback",
+      },
+      ...overrides,
+    }),
+  });
+}
+
+function refinement(overrides = {}) {
+  return {
+    feasibility: "works",
+    explanation: "Leafy greens can work if they are fresh and added near the end so they soften without taking over the soup.",
+    modifiedIngredients: ["Add a small handful of chopped leafy greens."],
+    modifiedSteps: ["Stir greens into the hot soup during the last few minutes of cooking."],
+    allergyNotes: ["Check labels and cross-contact risk for any added greens; Cookooi cannot certify allergy safety."],
+    foodSafetyNotes: ["Wash greens well and discard anything wilted, slimy, or off-smelling."],
+    confidenceNotes: "Works best with sturdy greens such as kale or spinach.",
+    proposedVariant: recipe("Potato Bacon Soup With Greens", ["potatoes", "bacon", "leafy greens"]),
+    ...overrides,
+  };
 }
 
 function recipe(title, used = ["eggs", "spinach", "rice"], allergyNotes = ["Contains egg and dairy."]) {
