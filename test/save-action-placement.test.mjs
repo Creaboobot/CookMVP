@@ -17,3 +17,16 @@ test("places proposal save action after full recipe details", async () => {
   assert.ok(sourceIndex > bodyStart);
   assert.ok(saveIndex > sourceIndex);
 });
+
+test("removes proposal save action from saved library detail clones", async () => {
+  const source = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+  const renderLibraryStart = source.indexOf("function renderLibrary()");
+  const cloneHelperStart = source.indexOf("function cloneSavedRecipeDetailBody()");
+  const cloneHelperEnd = source.indexOf("function savedRecipeMetaText", cloneHelperStart);
+  const renderLibrary = source.slice(renderLibraryStart, cloneHelperStart);
+  const cloneHelper = source.slice(cloneHelperStart, cloneHelperEnd);
+
+  assert.match(renderLibrary, /const detailBody = cloneSavedRecipeDetailBody\(\);/);
+  assert.match(cloneHelper, /querySelector\("\.recipe-save-row"\)\?\.remove\(\);/);
+  assert.doesNotMatch(cloneHelper, /querySelector\("\.save-button"\)\?\.remove\(\);/);
+});

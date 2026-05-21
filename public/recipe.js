@@ -357,7 +357,7 @@ function renderLibrary() {
       const savedMeta = document.createElement("p");
       const detailToggle = document.createElement("details");
       const detailSummary = document.createElement("summary");
-      const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
+      const detailBody = cloneSavedRecipeDetailBody();
       const removeButton = document.createElement("button");
 
       article.className = "library-item";
@@ -385,6 +385,12 @@ function renderLibrary() {
       return article;
     }),
   );
+}
+
+function cloneSavedRecipeDetailBody() {
+  const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
+  detailBody.querySelector(".recipe-save-row")?.remove();
+  return detailBody;
 }
 
 function savedRecipeMetaText(entry) {
