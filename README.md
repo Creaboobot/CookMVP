@@ -109,6 +109,8 @@ See `docs/account-community-architecture.md` for the future account and communit
 
 Task 30 adds the first schema-only Supabase migration baseline at `supabase/migrations/20260521235850_initial_data_schema.sql`. See `docs/database-schema-baseline.md` for the tables, ownership fields, Row Level Security baseline, public publication sanitizer contract, indexes, and validation plan. The current app still runs without a production database, Supabase project, or account feature flag.
 
+Task 31 adds disabled-by-default data access and feature-flag service boundaries. See `docs/data-access-layer.md` for the server request context, service modules, local-only browser adapter, and the flags that keep account storage, public recipes, and community interactions off until a later reviewed task enables them.
+
 Current local storage keys:
 
 - `cookooi-session-v1`: anonymous local session id.

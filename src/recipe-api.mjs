@@ -1,3 +1,6 @@
+import { createDataServices, safelyRecordDataService } from "./data-services.mjs";
+import { createRequestContext } from "./request-context.mjs";
+
 const MAX_BODY_BYTES = 20_000;
 const MAX_INGREDIENTS_TEXT_CHARS = 1000;
 const MAX_CRAVING_CHARS = 200;
@@ -200,6 +203,14 @@ export async function handleGenerateRecipeRequest(request, env = {}, options = {
     );
   }
 
+  const runtime = createApiRuntime(request, env, options);
+  await safelyRecordDataService(() =>
+    runtime.dataServices.recipeRequests.recordRecipeRequest(runtime.context, recipeRequest, {
+      endpoint: "generate",
+      source: "api",
+    }),
+  );
+
   const apiKey = env.OPENAI_API_KEY;
   const model = env.OPENAI_MODEL || DEFAULT_MODEL;
   const fallbackEnabled = env.COOKOOI_ENABLE_FALLBACK === "true";
@@ -297,6 +308,14 @@ export async function handleRefineRecipeRequest(request, env = {}, options = {})
       { "retry-after": String(rateLimit.retryAfterSeconds) },
     );
   }
+
+  const runtime = createApiRuntime(request, env, options);
+  await safelyRecordDataService(() =>
+    runtime.dataServices.followUpRequests.recordFollowUpRequest(runtime.context, refinementRequest, {
+      endpoint: "refine",
+      source: "api",
+    }),
+  );
 
   const apiKey = env.OPENAI_API_KEY;
   const model = env.OPENAI_MODEL || DEFAULT_MODEL;
@@ -424,6 +443,17 @@ export async function handleTranscribeVoiceRequest(request, env = {}, options = 
       return jsonResponse({ error: "invalid_ai_output", message: "Cookooi could not read a transcript from this audio." }, 502);
     }
 
+    const runtime = createApiRuntime(request, env, options);
+    await safelyRecordDataService(() =>
+      runtime.dataServices.voiceNotes.recordTranscriptionMetadata(runtime.context, {
+        provider: "openai",
+        model,
+        source: "api",
+        audioBytes: validation.value.file.size,
+        mimeType: validation.value.mimeType,
+      }),
+    );
+
     return jsonResponse({
       transcript,
       source: "ai",
@@ -435,6 +465,13 @@ export async function handleTranscribeVoiceRequest(request, env = {}, options = 
     const providerError = classifyTranscriptionProviderError(error);
     return jsonResponse({ error: providerError.code, message: providerError.message }, providerError.status);
   }
+}
+
+function createApiRuntime(request, env, options = {}) {
+  const context = options.requestContext || createRequestContext(request, env, { now: options.now });
+  const dataServices = options.dataServices || createDataServices({ env, adapters: options.dataAdapters });
+
+  return { context, dataServices };
 }
 
 async function parseJsonRequest(request) {

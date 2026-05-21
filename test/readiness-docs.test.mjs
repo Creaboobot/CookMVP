@@ -186,3 +186,22 @@ test("documents auth database and environment strategy", async () => {
   assert.doesNotMatch(strategyDoc, /sk-[A-Za-z0-9_-]{20,}/);
   assert.doesNotMatch(strategyDoc, /\bfridge\b/i);
 });
+
+test("documents disabled data access layer and feature flag boundaries", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const dataAccessDoc = await readFile(new URL("../docs/data-access-layer.md", import.meta.url), "utf8");
+
+  assert.match(readme, /data-access-layer\.md/);
+  assert.match(dataAccessDoc, /COOKOOI_ACCOUNTS_ENABLED=false/);
+  assert.match(dataAccessDoc, /COOKOOI_SERVER_LIBRARY_ENABLED=false/);
+  assert.match(dataAccessDoc, /COOKOOI_PUBLIC_RECIPES_ENABLED=false/);
+  assert.match(dataAccessDoc, /COOKOOI_COMMUNITY_SIGNALS_ENABLED=false/);
+  assert.match(dataAccessDoc, /src\/request-context\.mjs/);
+  assert.match(dataAccessDoc, /src\/data-services\.mjs/);
+  assert.match(dataAccessDoc, /public\/local-data-services\.js/);
+  assert.match(dataAccessDoc, /user profiles, recipe requests, saved recipes/);
+  assert.match(dataAccessDoc, /community interactions/);
+  assert.match(dataAccessDoc, /browser-local until a later account task/);
+  assert.doesNotMatch(dataAccessDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(dataAccessDoc, /\bfridge\b/i);
+});
