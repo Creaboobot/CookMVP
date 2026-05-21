@@ -107,6 +107,8 @@ Saved settings, saved recipes, feedback capture, and lightweight analytics are b
 
 See `docs/account-community-architecture.md` for the future account and community data model, including the private/public recipe split, publication rules, likes, bookmarks, reports, rankings, and anonymous-to-account migration principles. See `docs/auth-database-environment-strategy.md` for the selected Supabase Auth plus Postgres backend strategy, environment separation, secret-handling rules, and validation expectations for future account/database work.
 
+Task 30 adds the first schema-only Supabase migration baseline at `supabase/migrations/20260521235850_initial_data_schema.sql`. See `docs/database-schema-baseline.md` for the tables, ownership fields, Row Level Security baseline, public publication sanitizer contract, indexes, and validation plan. The current app still runs without a production database, Supabase project, or account feature flag.
+
 Current local storage keys:
 
 - `cookooi-session-v1`: anonymous local session id.
