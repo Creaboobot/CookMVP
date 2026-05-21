@@ -220,7 +220,8 @@ function avoidStopCues() {
   return [
     /\b(?:for|serves?|serving(?:s)?(?: for)?)\s+(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i,
     /\b(?:under|within|in|less than|max(?:imum)?(?: of)?)\s+\d{1,3}\s*(?:minutes?|mins?)\b/i,
-    /\b(?:with|using)\s+(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)\b/i,
+    /\b(?:use|using|with)\s+(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?\b/i,
+    /[,;]\s*(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?\b/i,
     /\b(?:vegetarian|vegan|gluten[- ]free|dairy[- ]free|halal|kosher|(?:for\s+)?breakfast|(?:for\s+)?lunch|(?:for\s+)?dinner|(?:for\s+)?snack)\b/i,
   ];
 }
@@ -239,7 +240,11 @@ function stopAtCue(segment, cues) {
 }
 
 function normalizeListPhrase(value) {
-  return cleanText(value.replace(/\s+(?:and|plus)\s+/gi, ", ").replace(/\s*,\s*/g, ", "));
+  return cleanText(value.replace(/\s*,\s*(?:and|plus)\s+/gi, ", ").replace(/\s+(?:and|plus)\s+/gi, ", "))
+    .split(",")
+    .map(cleanText)
+    .filter(Boolean)
+    .join(", ");
 }
 
 function boundedInteger(value, min, max) {
