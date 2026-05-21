@@ -92,6 +92,8 @@ let generationInFlight = false;
 let lastSubmittedPayload = null;
 let currentRecipeSettings = readRecipeSettings();
 let voiceReviewActive = false;
+let recognitionStarted = false;
+let recognitionHadResult = false;
 const sessionId = getSessionId();
 
 function listItems(container, items, emptyText) {
@@ -977,9 +979,9 @@ function setupVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    els.voiceStatus.textContent = "Speech capture unavailable; paste a transcript below.";
+    els.voiceStatus.textContent = "Speech capture unavailable here. Use your keyboard microphone or paste a note below.";
     els.dictateButton.disabled = true;
-    els.dictateButton.textContent = "Speech unavailable";
+    els.dictateButton.textContent = "Use keyboard mic";
     return;
   }
 
@@ -989,6 +991,8 @@ function setupVoiceInput() {
   recognition.lang = "en-US";
 
   recognition.addEventListener("start", () => {
+    recognitionStarted = true;
+    recognitionHadResult = false;
     els.voiceStatus.textContent = "Listening for one note...";
     els.dictateButton.textContent = "Listening...";
   });
@@ -997,16 +1001,55 @@ function setupVoiceInput() {
     const transcript = Array.from(event.results)
       .map((result) => result[0].transcript)
       .join(" ");
+    recognitionHadResult = Boolean(transcript.trim());
     els.voiceNote.value = [els.voiceNote.value.trim(), transcript].filter(Boolean).join(" ");
     parseVoiceNote();
   });
 
+  recognition.addEventListener("error", (event) => {
+    recognitionStarted = false;
+    recognitionHadResult = false;
+    els.dictateButton.textContent = "Start voice note";
+    els.voiceStatus.textContent = voiceRecognitionErrorMessage(event.error);
+  });
+
   recognition.addEventListener("end", () => {
-    els.voiceStatus.textContent = "Voice note ready to review.";
+    els.voiceStatus.textContent =
+      recognitionStarted && recognitionHadResult
+        ? "Voice note ready to review."
+        : "No voice note was captured. Check microphone permission, use your keyboard microphone, or paste a note below.";
+    recognitionStarted = false;
     els.dictateButton.textContent = "Start voice note";
   });
 
   els.voiceStatus.textContent = "Voice input ready.";
+}
+
+function startVoiceRecognition() {
+  if (!recognition) {
+    els.voiceStatus.textContent = "Speech capture unavailable here. Use your keyboard microphone or paste a note below.";
+    return;
+  }
+
+  try {
+    recognition.start();
+  } catch {
+    els.voiceStatus.textContent = "Voice capture could not start. Use your keyboard microphone or paste a note below.";
+    els.dictateButton.textContent = "Start voice note";
+  }
+}
+
+function voiceRecognitionErrorMessage(errorCode) {
+  const messages = {
+    "not-allowed": "Microphone access was blocked. Allow microphone access, use your keyboard microphone, or paste a note below.",
+    "service-not-allowed": "Speech capture is not available in this browser. Use your keyboard microphone or paste a note below.",
+    "audio-capture": "Cookooi could not access the microphone. Check the device microphone or paste a note below.",
+    network: "Speech capture needs browser speech service access. Use your keyboard microphone or paste a note below.",
+    "no-speech": "No speech was captured. Try again, use your keyboard microphone, or paste a note below.",
+    aborted: "Voice capture stopped. Try again or paste a note below.",
+  };
+
+  return messages[errorCode] || "Voice capture did not work here. Use your keyboard microphone or paste a note below.";
 }
 
 els.form.addEventListener("submit", async (event) => {
@@ -1040,7 +1083,7 @@ els.tryMoreButton.addEventListener("click", async () => {
 });
 
 els.dictateButton.addEventListener("click", () => {
-  recognition?.start();
+  startVoiceRecognition();
 });
 
 els.parseVoiceButton.addEventListener("click", parseVoiceNote);
