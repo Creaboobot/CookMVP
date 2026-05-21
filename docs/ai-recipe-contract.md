@@ -56,6 +56,52 @@ The browser may offer a one-note input mode that lets the user speak or paste av
 
 Voice-derived fields have higher priority than saved Settings defaults for the current request. The raw transcript must not be included in generation analytics, saved recipes, or exported session JSON by default.
 
+## Voice Transcription API
+
+Cookooi exposes a server-side transcription endpoint for short recorded voice notes:
+
+```http
+POST /api/voice/transcribe
+Content-Type: multipart/form-data
+```
+
+The browser should upload one recorded audio blob as `audio`; `file` is accepted as a compatibility field. The browser must never call OpenAI directly and must never receive an API key. The endpoint is independent from recipe generation so the user can review and edit the transcript before parsing or generating meal ideas.
+
+Supported MVP audio formats should match common browser `MediaRecorder` output and OpenAI transcription input formats where practical:
+
+- `audio/mp4`
+- `audio/m4a`
+- `audio/webm`
+- `audio/wav`
+- `audio/mp3` / `audio/mpeg`
+- `audio/ogg`
+- `audio/flac`
+
+Validation rules:
+
+- Reject non-POST methods with HTTP 405.
+- Reject non-multipart requests, missing audio, or empty audio with HTTP 400.
+- Reject unsupported audio types with HTTP 415.
+- Reject uploads over 4 MB with HTTP 413 and ask for a shorter voice note.
+- Use `OPENAI_API_KEY` server-side only.
+- Use `OPENAI_TRANSCRIPTION_MODEL` when provided; otherwise default to `gpt-4o-mini-transcribe`.
+- Return user-safe provider errors without raw provider payloads or secrets.
+- Do not persist raw audio.
+
+Successful response:
+
+```json
+{
+  "transcript": "eggs, spinach, rice, and cheddar for dinner",
+  "source": "ai",
+  "provider": "openai",
+  "model": "gpt-4o-mini-transcribe",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}
+```
+
+The transcript is returned to the browser for user review. It should not be written to feedback/session analytics by default.
+
 ## Response Contract
 
 Successful generation returns exactly three recipe proposals.

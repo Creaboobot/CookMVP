@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleGenerateRecipeRequest, handleRefineRecipeRequest } from "../src/recipe-api.mjs";
+import { handleGenerateRecipeRequest, handleRefineRecipeRequest, handleTranscribeVoiceRequest } from "../src/recipe-api.mjs";
 
 test("rejects non-POST requests", async () => {
   const response = await handleGenerateRecipeRequest(new Request("http://cookooi.test/api/recipes/generate"));
@@ -319,6 +319,127 @@ test("maps refinement provider timeouts to retryable user-safe responses", async
   assert.equal(response.status, 504);
   assert.equal(body.error, "provider_timeout");
   assert.match(body.message, /try again/i);
+});
+
+test("rejects non-POST transcription requests", async () => {
+  const response = await handleTranscribeVoiceRequest(new Request("http://cookooi.test/api/voice/transcribe"));
+  const body = await response.json();
+
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("allow"), "POST");
+  assert.equal(body.error, "method_not_allowed");
+});
+
+test("rejects invalid transcription uploads", async () => {
+  const wrongContentType = await handleTranscribeVoiceRequest(
+    new Request("http://cookooi.test/api/voice/transcribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    }),
+  );
+  const wrongContentTypeBody = await wrongContentType.json();
+
+  assert.equal(wrongContentType.status, 400);
+  assert.equal(wrongContentTypeBody.error, "invalid_request");
+
+  const missingAudio = await handleTranscribeVoiceRequest(audioRequest(null));
+  const missingAudioBody = await missingAudio.json();
+
+  assert.equal(missingAudio.status, 400);
+  assert.equal(missingAudioBody.error, "missing_audio");
+
+  const unsupported = await handleTranscribeVoiceRequest(
+    audioRequest(new Blob(["not audio"], { type: "text/plain" }), "voice-note.txt"),
+  );
+  const unsupportedBody = await unsupported.json();
+
+  assert.equal(unsupported.status, 415);
+  assert.equal(unsupportedBody.error, "unsupported_audio_type");
+});
+
+test("rejects oversized transcription audio", async () => {
+  const oversized = new Blob([new Uint8Array(4_000_001)], { type: "audio/webm" });
+  const response = await handleTranscribeVoiceRequest(audioRequest(oversized, "voice-note.webm"));
+  const body = await response.json();
+
+  assert.equal(response.status, 413);
+  assert.equal(body.error, "audio_too_large");
+  assert.match(body.message, /4 MB or less/);
+});
+
+test("returns 503 when transcription OpenAI configuration is missing", async () => {
+  const response = await handleTranscribeVoiceRequest(audioRequest());
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.error, "provider_unavailable");
+  assert.match(body.message, /text transcript/i);
+});
+
+test("sends audio to the transcription provider and returns transcript", async () => {
+  let providerUrl;
+  let providerRequest;
+  const response = await handleTranscribeVoiceRequest(
+    audioRequest(),
+    { OPENAI_API_KEY: "test-key", OPENAI_TRANSCRIPTION_MODEL: "test-transcribe-model" },
+    {
+      fetcher: async (url, init) => {
+        providerUrl = url;
+        providerRequest = init;
+        return Response.json({ text: "Eggs, rice, and spinach for dinner." });
+      },
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(providerUrl, "https://api.openai.com/v1/audio/transcriptions");
+  assert.equal(providerRequest.method, "POST");
+  assert.equal(providerRequest.headers.authorization, "Bearer test-key");
+  assert.equal(providerRequest.body.get("model"), "test-transcribe-model");
+  assert.equal(providerRequest.body.get("response_format"), "json");
+  assert.equal(providerRequest.body.get("file").name, "voice-note.webm");
+  assert.equal(body.transcript, "Eggs, rice, and spinach for dinner.");
+  assert.equal(body.source, "ai");
+  assert.equal(body.provider, "openai");
+  assert.equal(body.model, "test-transcribe-model");
+});
+
+test("maps transcription provider errors to user-safe responses", async () => {
+  const response = await handleTranscribeVoiceRequest(
+    audioRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        new Response(JSON.stringify({ error: { message: "secret provider detail" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.error, "provider_unavailable");
+  assert.doesNotMatch(JSON.stringify(body), /secret provider detail/);
+});
+
+test("maps transcription provider timeouts to retryable user-safe responses", async () => {
+  const response = await handleTranscribeVoiceRequest(
+    audioRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 504);
+  assert.equal(body.error, "provider_timeout");
+  assert.match(body.message, /shorter note/i);
 });
 
 test("rate limits repeated requests from the same test session", async () => {
@@ -640,6 +761,18 @@ function refineRequest(overrides = {}, headers = {}) {
       },
       ...overrides,
     }),
+  });
+}
+
+function audioRequest(blob = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "audio/webm" }), filename = "voice-note.webm") {
+  const formData = new FormData();
+  if (blob) {
+    formData.set("audio", blob, filename);
+  }
+  return new Request("http://cookooi.test/api/voice/transcribe", {
+    method: "POST",
+    headers: { "x-cookooi-session": "transcribe-test-session" },
+    body: formData,
   });
 }
 

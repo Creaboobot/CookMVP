@@ -39,6 +39,24 @@ test("documents provider configuration and fallback expectations", async () => {
   assert.doesNotMatch(providerDoc, /sk-[A-Za-z0-9_-]{20,}/);
 });
 
+test("documents server-side voice transcription boundaries", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const contract = await readFile(new URL("../docs/ai-recipe-contract.md", import.meta.url), "utf8");
+
+  assert.match(readme, /POST \/api\/voice\/transcribe/);
+  assert.match(readme, /OPENAI_TRANSCRIPTION_MODEL/);
+  assert.match(readme, /gpt-4o-mini-transcribe/);
+  assert.match(readme, /does not persist raw audio/);
+  assert.match(readme, /Task 26/);
+  assert.match(contract, /Voice Transcription API/);
+  assert.match(contract, /multipart\/form-data/);
+  assert.match(contract, /audio\/mp4/);
+  assert.match(contract, /audio\/webm/);
+  assert.match(contract, /4 MB/);
+  assert.match(contract, /server-side only/);
+  assert.doesNotMatch(contract, /sk-[A-Za-z0-9_-]{20,}/);
+});
+
 test("tester-facing browser code avoids mojibake separators", async () => {
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
 

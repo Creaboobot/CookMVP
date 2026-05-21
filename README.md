@@ -67,23 +67,39 @@ The server exposes:
 ```text
 POST /api/recipes/generate
 POST /api/recipes/refine
+POST /api/voice/transcribe
 ```
 
 The endpoint reads provider configuration from the server environment only:
 
 - `OPENAI_API_KEY`: required for OpenAI-backed recipe generation.
 - `OPENAI_MODEL`: optional, defaults to `gpt-5.4-mini`.
+- `OPENAI_TRANSCRIPTION_MODEL`: optional, defaults to `gpt-4o-mini-transcribe`.
 - `COOKOOI_ENABLE_FALLBACK=true`: optional testing mode for deterministic fallback output when OpenAI is unavailable.
 
 Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
 
 The refinement endpoint accepts one selected recipe plus one bounded follow-up question and returns a structured feasibility answer with suggested ingredient/step changes, allergy notes, food-safety notes, and an optional proposed variant. The browser follow-up UI renders that answer inside the expanded meal detail without overwriting or saving over the original recipe.
 
+The voice transcription endpoint accepts one short multipart audio upload in the `audio` field, with `file` also accepted for compatibility. It supports browser recording formats such as `audio/mp4`, `audio/m4a`, and `audio/webm`, rejects files over 4 MB, and calls OpenAI server-side. A successful response returns:
+
+```json
+{
+  "transcript": "eggs, spinach, rice, and cheddar for dinner",
+  "source": "ai",
+  "provider": "openai",
+  "model": "gpt-4o-mini-transcribe",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}
+```
+
+Task 25 only adds the backend transcription route. The mobile in-app recording UI belongs to Task 26.
+
 See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test note, including the current local configuration result and the safe steps for repeating a real OpenAI-backed check without exposing secrets.
 
 ## Testing privacy notes
 
-Cookooi sends the ingredients the user has, any craving they add, saved baseline settings, and any explicit voice-note interpretation fields to the server for immediate recipe generation. For per-meal follow-ups, Cookooi sends the selected recipe and the one follow-up question to the server for immediate refinement. The raw voice transcript stays on the page for review in this MVP and is not sent as part of the generation payload. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
+Cookooi sends the ingredients the user has, any craving they add, saved baseline settings, and any explicit voice-note interpretation fields to the server for immediate recipe generation. For per-meal follow-ups, Cookooi sends the selected recipe and the one follow-up question to the server for immediate refinement. For mobile-safe voice input, Cookooi can send a short recorded audio file to the server-side transcription endpoint; the endpoint returns a transcript for user review and does not persist raw audio. The raw voice transcript stays on the page for review in this MVP and is not sent as part of the generation payload. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
 
 Saved settings, saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, baseline recipe settings, full saved recipe objects, saved timestamps, generation links, generation success/failure records, follow-up success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, voice transcripts, avoidances, free-text cuisine/flavor preferences, or raw follow-up questions in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
 
@@ -142,7 +158,7 @@ Checklist:
 1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
 2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
 3. Open Settings, set at least one baseline preference such as an avoidance, servings, meal type, available time, cuisine or flavor, or available equipment, then save settings.
-4. Enter ingredients the tester has, optionally add a craving, or use the voice-note transcript fallback to parse those fields and generate recipes.
+4. Enter ingredients the tester has, optionally add a craving, or use the voice-note transcript fallback to parse those fields and generate recipes. After Task 26, phone users should be able to record a short in-app voice note that uses `POST /api/voice/transcribe` before this review step.
 5. Confirm exactly three proposals appear.
 6. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
 7. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
@@ -172,5 +188,6 @@ After each test session, use `Export session JSON` before clearing the browser-l
 - Settings are browser-local only and need to be reset manually when a tester wants default preferences again.
 - Exported session JSON is the only transfer or recovery path after clearing local data.
 - Follow-up responses are advisory; adjusted variants are displayed separately and are not saved over the original recipe.
+- Server-side voice transcription is available as an endpoint, but the in-app mobile recorder UI is still a separate Task 26 deliverable.
 - OpenAI-backed generation depends on server-side `OPENAI_API_KEY` configuration; the app can use clearly labeled deterministic fallback output for local workflow testing.
 - Cookooi provides recipe proposals, not safety, allergy, medical, or nutrition guarantees.
