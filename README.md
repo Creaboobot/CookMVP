@@ -95,6 +95,8 @@ The voice transcription endpoint accepts one short multipart audio upload in the
 
 The browser voice-note UI records short in-app audio with `MediaRecorder` when available, uploads it to this endpoint, places the returned transcript in the existing review field, and then reuses the structured voice-note parser before generation. If recording is unavailable or permission is blocked, the transcript field remains available for manual text input.
 
+See `docs/mobile-voice-validation.md` for the Task 27 public HTTPS validation result, including the exact URL, device/browser profile, live transcription result, and remaining physical iPhone spot-check note.
+
 See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test note, including the current local configuration result and the safe steps for repeating a real OpenAI-backed check without exposing secrets.
 
 ## Testing privacy notes
@@ -172,6 +174,10 @@ Checklist:
 
 If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also run one OpenAI-backed generation and confirm the successful status says the proposals are AI-generated. If no provider key is configured, keep `COOKOOI_ENABLE_FALLBACK=true` for local workflow testing and record OpenAI-backed generation as not configured for that run.
 
+### Mobile voice validation result
+
+Task 27 validated the voice path on May 21, 2026 against `https://cookooi.creabooboard.win`. The automation recovered the public route to current `main`, confirmed the recorder UI over HTTPS, posted a generated speech WAV to `POST /api/voice/transcribe`, received an OpenAI transcript from `gpt-4o-mini-transcribe`, and generated exactly three OpenAI-backed recipe proposals from the parsed fields. A 390px mobile Safari-profile browser smoke verified secure context, record/stop states, transcript review, parsed fields, generation, and no horizontal overflow. Physical iPhone Safari microphone permission still needs a human spot-check during the next tester pass because automation cannot grant a handheld device microphone prompt.
+
 ## Tester instruction script
 
 Use this short script for the first testing round:
@@ -188,6 +194,6 @@ After each test session, use `Export session JSON` before clearing the browser-l
 - Settings are browser-local only and need to be reset manually when a tester wants default preferences again.
 - Exported session JSON is the only transfer or recovery path after clearing local data.
 - Follow-up responses are advisory; adjusted variants are displayed separately and are not saved over the original recipe.
-- Mobile voice input uses in-app browser recording plus server-side transcription where `MediaRecorder` and microphone permission are available; unsupported browsers can still use the editable transcript fallback. Final iPhone HTTPS validation belongs to Task 27.
+- Mobile voice input uses in-app browser recording plus server-side transcription where `MediaRecorder` and microphone permission are available; unsupported browsers can still use the editable transcript fallback. Task 27 validated the public HTTPS route with live transcription and a mobile Safari-profile smoke; physical iPhone Safari microphone permission should still be spot-checked in the next human tester pass.
 - OpenAI-backed generation depends on server-side `OPENAI_API_KEY` configuration; the app can use clearly labeled deterministic fallback output for local workflow testing.
 - Cookooi provides recipe proposals, not safety, allergy, medical, or nutrition guarantees.

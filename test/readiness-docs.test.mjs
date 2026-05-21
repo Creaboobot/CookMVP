@@ -49,7 +49,7 @@ test("documents server-side voice transcription boundaries", async () => {
   assert.match(readme, /does not persist raw audio/);
   assert.match(readme, /MediaRecorder/);
   assert.match(readme, /transcript field remains available/);
-  assert.match(readme, /Task 27/);
+  assert.match(readme, /mobile-voice-validation\.md/);
   assert.match(contract, /Voice Transcription API/);
   assert.match(contract, /multipart\/form-data/);
   assert.match(contract, /getUserMedia/);
@@ -59,6 +59,22 @@ test("documents server-side voice transcription boundaries", async () => {
   assert.match(contract, /4 MB/);
   assert.match(contract, /server-side only/);
   assert.doesNotMatch(contract, /sk-[A-Za-z0-9_-]{20,}/);
+});
+
+test("documents public HTTPS mobile voice validation outcome", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const validationDoc = await readFile(new URL("../docs/mobile-voice-validation.md", import.meta.url), "utf8");
+
+  assert.match(readme, /Mobile voice validation result/);
+  assert.match(readme, /https:\/\/cookooi\.creabooboard\.win/);
+  assert.match(readme, /gpt-4o-mini-transcribe/);
+  assert.match(readme, /physical iPhone Safari microphone permission/);
+  assert.match(validationDoc, /Task 27 validated the public HTTPS voice path/);
+  assert.match(validationDoc, /21b5349de941a7b8519c0a22b332c0da52b804c2/);
+  assert.match(validationDoc, /POST \/api\/voice\/transcribe/);
+  assert.match(validationDoc, /390px mobile Safari-profile/);
+  assert.match(validationDoc, /Unsupported Media Type/);
+  assert.doesNotMatch(validationDoc, /sk-[A-Za-z0-9_-]{20,}/);
 });
 
 test("tester-facing browser code avoids mojibake separators", async () => {
