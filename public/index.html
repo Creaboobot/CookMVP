@@ -51,6 +51,112 @@
             />
           </label>
 
+          <section class="voice-note-panel" aria-labelledby="voice-note-title">
+            <div class="voice-note-heading">
+              <div>
+                <p class="eyebrow">Voice note</p>
+                <h3 id="voice-note-title">Say it in one note</h3>
+                <p>
+                  Speak or paste available items, an optional craving, and any constraints. Review
+                  the parsed fields before generating.
+                </p>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Voice note transcript</span>
+              <textarea
+                id="voice-note-input"
+                rows="4"
+                maxlength="1400"
+                placeholder="Example: I have potatoes, bacon, kale, and cheddar. Make dinner for three in 30 minutes, no peanuts, stovetop only."
+              ></textarea>
+            </label>
+
+            <div class="voice-actions">
+              <button class="secondary-button" id="dictate-button" type="button">Start voice note</button>
+              <button class="secondary-button" id="parse-voice-button" type="button">Parse note</button>
+              <button class="text-button" id="clear-voice-button" type="button">Clear note</button>
+            </div>
+            <p class="voice-privacy">
+              Speech capture depends on your browser. The raw transcript is used only on this page
+              and is not saved in session analytics.
+            </p>
+
+            <fieldset class="voice-review-panel" id="voice-review-panel" hidden>
+              <legend>Parsed request</legend>
+              <label class="field">
+                <span>Parsed available items</span>
+                <textarea id="voice-ingredients-input" rows="3" maxlength="1000"></textarea>
+              </label>
+              <label class="field">
+                <span>Parsed craving <span class="optional-note">Optional</span></span>
+                <input id="voice-craving-input" type="text" maxlength="200" />
+              </label>
+              <div class="constraint-grid">
+                <label class="field">
+                  <span>Parsed avoidances</span>
+                  <input id="voice-avoid-input" type="text" maxlength="500" />
+                </label>
+                <label class="field">
+                  <span>Parsed diet</span>
+                  <select id="voice-diet-input">
+                    <option value="">Use Settings default</option>
+                    <option value="none">No dietary preference</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="gluten-free">Gluten-free</option>
+                    <option value="dairy-free">Dairy-free</option>
+                    <option value="halal">Halal</option>
+                    <option value="kosher">Kosher</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Parsed meal type</span>
+                  <select id="voice-meal-type-input">
+                    <option value="">Use Settings default</option>
+                    <option value="flexible">Flexible</option>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Parsed servings</span>
+                  <input id="voice-servings-input" type="number" min="1" max="12" />
+                </label>
+                <label class="field">
+                  <span>Parsed available time</span>
+                  <select id="voice-time-input">
+                    <option value="">Use Settings default</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="90">1.5 hours</option>
+                    <option value="120">2 hours</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Parsed cuisine or flavor</span>
+                  <input id="voice-cuisine-input" type="text" maxlength="120" />
+                </label>
+              </div>
+              <div class="equipment-group" aria-labelledby="voice-equipment-title">
+                <span id="voice-equipment-title">Parsed equipment</span>
+                <div class="checkbox-grid">
+                  <label><input type="checkbox" name="voiceEquipment" value="oven" /> Oven</label>
+                  <label><input type="checkbox" name="voiceEquipment" value="stovetop" /> Stovetop</label>
+                  <label><input type="checkbox" name="voiceEquipment" value="microwave" /> Microwave</label>
+                  <label><input type="checkbox" name="voiceEquipment" value="blender" /> Blender</label>
+                  <label><input type="checkbox" name="voiceEquipment" value="air-fryer" /> Air fryer</label>
+                </div>
+              </div>
+              <p class="voice-review-status" id="voice-review-status" aria-live="polite"></p>
+            </fieldset>
+          </section>
+
           <section class="settings-panel" aria-labelledby="settings-title">
             <div class="settings-summary-row">
               <div>
@@ -178,7 +284,6 @@
           <div class="form-actions">
             <button class="primary-button" id="generate-button" type="submit">Get three meal ideas</button>
             <button class="secondary-button" id="retry-button" type="button" hidden>Retry</button>
-            <button class="secondary-button" id="dictate-button" type="button">Dictate ingredients</button>
           </div>
           <p class="generation-status" id="generation-status" aria-live="polite"></p>
         </form>
