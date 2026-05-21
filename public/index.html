@@ -12,8 +12,9 @@
         <p class="eyebrow">Cookooi testing prototype</p>
         <h1 id="app-title">Turn what you have into dinner ideas.</h1>
         <p>
-          Tell the app what ingredients you have and what you are craving. It will suggest three
-          distinct meals, show what each one uses, and call out any groceries you still need.
+          Tell the app what ingredients you have, and add a craving only if you have one. It will
+          suggest three distinct meals, show what each one uses, and call out any groceries you
+          still need.
         </p>
       </section>
 
@@ -40,14 +41,13 @@
           </label>
 
           <label class="field">
-            <span>What are you craving?</span>
+            <span>What are you craving? <span class="optional-note">Optional</span></span>
             <input
               id="craving-input"
               name="craving"
               type="text"
               maxlength="200"
-              placeholder="Example: cozy pasta, something spicy, quick breakfast"
-              required
+              placeholder="Optional: cozy pasta, something spicy, quick breakfast"
             />
           </label>
 
@@ -127,8 +127,8 @@
               <h3 id="disclosure-title">AI-generated recipe proposals</h3>
             </div>
             <p>
-              Cookooi processes the ingredients you have, your craving, and optional preferences to
-              generate recipe proposals. Do not enter sensitive personal information. Review
+              Cookooi processes the ingredients you have, any craving you add, and optional preferences
+              to generate recipe proposals. Do not enter sensitive personal information. Review
               ingredients, allergies, freshness, and cooking safety before making a meal.
             </p>
             <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
@@ -159,7 +159,7 @@
         <div class="proposal-grid" id="proposal-grid" aria-live="polite">
           <article class="empty-state">
             <h3>Ready when you are.</h3>
-            <p>Add ingredients and a craving to generate three starter recipes.</p>
+            <p>Add ingredients to generate three starter recipes.</p>
           </article>
         </div>
       </section>

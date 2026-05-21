@@ -1,6 +1,6 @@
 # Cookooi
 
-Cookooi is a local recipe prototype. Enter ingredients you already have, add what you are craving, and the app suggests three meal ideas with used ingredients and items still needed.
+Cookooi is a local recipe prototype. Enter ingredients you already have, optionally add what you are craving, and the app suggests three meal ideas with used ingredients and items still needed.
 
 ## Run
 
@@ -80,7 +80,7 @@ See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test n
 
 ## Testing privacy notes
 
-Cookooi sends the ingredients the user has, their craving, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
+Cookooi sends the ingredients the user has, any craving they add, and optional preferences to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
 
 Saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, full saved recipe objects, saved timestamps, generation links, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, avoidances, or free-text cuisine/flavor preferences in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
 
@@ -123,7 +123,7 @@ Checklist:
 
 1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
 2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
-3. Enter ingredients the tester has, a craving, at least one avoidance, servings, available time, cuisine or flavor, and available equipment.
+3. Enter ingredients the tester has, optionally add a craving, then add at least one avoidance, servings, available time, cuisine or flavor, and available equipment.
 4. Generate recipes and confirm exactly three proposals appear.
 5. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
 6. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
@@ -139,7 +139,7 @@ If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also ru
 Use this short script for the first testing round:
 
 ```text
-Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Add a few ingredients, what you are craving, and any allergies or ingredients you avoid. After the recipes appear, compare the items used and items still needed, open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
+Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Add a few ingredients, optionally add what you are craving, and include any allergies or ingredients you avoid. After the recipes appear, compare the items used and items still needed, open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
 ```
 
 After each test session, use `Export session JSON` before clearing the browser-local session data.

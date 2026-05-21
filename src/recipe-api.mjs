@@ -93,7 +93,7 @@ export async function handleGenerateRecipeRequest(request, env = {}, options = {
     return jsonResponse(
       {
         error: "food_only",
-        message: "I only cook up food recipes here. Give me ingredients and a craving, and I will get back to the kitchen.",
+        message: "I only cook up food recipes here. Give me ingredients, and I will get back to the kitchen.",
       },
       400,
     );
@@ -188,13 +188,14 @@ function validateRecipeRequest(payload) {
     return invalid(`Ingredients text must be ${MAX_INGREDIENTS_TEXT_CHARS} characters or fewer.`);
   }
 
-  const craving = cleanText(payload.craving);
-  if (!craving) {
-    return invalid("Add a craving or goal before generating recipes.");
+  if (payload.craving !== undefined && typeof payload.craving !== "string") {
+    return invalid("Craving must be text when provided.");
   }
-  if (craving.length > MAX_CRAVING_CHARS) {
+  const submittedCraving = cleanText(payload.craving);
+  if (submittedCraving.length > MAX_CRAVING_CHARS) {
     return invalid(`Craving must be ${MAX_CRAVING_CHARS} characters or fewer.`);
   }
+  const craving = submittedCraving || "flexible meal ideas";
 
   const constraints = payload.constraints === undefined ? {} : payload.constraints;
   if (!constraints || typeof constraints !== "object" || Array.isArray(constraints)) {
@@ -275,7 +276,7 @@ function validateRecipeRequest(payload) {
   const promptCharacters = countUserPromptCharacters({ ingredientsText, craving, constraints: normalizedConstraints });
   if (promptCharacters > MAX_USER_PROMPT_CHARS) {
     return invalid(
-      `Your request is too long for this test build. Shorten available items, craving, or preferences to ${MAX_USER_PROMPT_CHARS} characters total.`,
+      `Your request is too long for this test build. Shorten available items, optional craving, or preferences to ${MAX_USER_PROMPT_CHARS} characters total.`,
     );
   }
 
@@ -621,7 +622,7 @@ function fallbackRecipe(title, craving, used, servings, difficulty, constraints)
 
   return {
     title,
-    summary: `A simple fallback idea for a ${craving || "practical"} meal using the items available.`,
+    summary: `A simple fallback idea for ${craving || "flexible meal ideas"} using the items available.`,
     usesFromAvailableItems: used,
     itemsStillNeeded: ["seasoning", "cooking oil"],
     steps: [

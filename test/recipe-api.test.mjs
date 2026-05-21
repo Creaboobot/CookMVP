@@ -23,18 +23,20 @@ test("rejects malformed JSON", async () => {
   assert.equal(body.error, "invalid_json");
 });
 
-test("rejects invalid payloads", async () => {
+test("rejects invalid payloads with missing ingredients", async () => {
   const response = await handleGenerateRecipeRequest(
     new Request("http://cookooi.test/api/recipes/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ingredientsText: "eggs", craving: "" }),
+      body: JSON.stringify({ craving: "quick dinner" }),
     }),
   );
   const body = await response.json();
 
   assert.equal(response.status, 400);
   assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /ingredients/i);
+  assert.doesNotMatch(body.message, /craving/i);
 });
 
 test("rejects overlong available item input", async () => {
@@ -105,6 +107,21 @@ test("maps provider errors to user-safe responses", async () => {
   assert.equal(body.error, "provider_rate_limited");
   assert.match(body.message, /try again/i);
   assert.doesNotMatch(JSON.stringify(body), /secret provider detail/);
+});
+
+test("returns fallback recipes when craving is empty", async () => {
+  const response = await handleGenerateRecipeRequest(validRequest({ craving: "" }), {
+    COOKOOI_ENABLE_FALLBACK: "true",
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(body.recipes.length, 3);
+  for (const fallbackRecipe of body.recipes) {
+    assert.match(fallbackRecipe.summary, /flexible meal ideas/);
+    assert.doesNotMatch(fallbackRecipe.summary, /\s{2,}|undefined|null/);
+  }
 });
 
 test("maps provider timeouts to retryable user-safe responses", async () => {
@@ -224,6 +241,28 @@ test("rejects provider output that uses avoided ingredients", async () => {
 
   assert.equal(response.status, 502);
   assert.equal(body.error, "invalid_ai_output");
+});
+
+test("sends neutral generation goal to the provider when craving is empty", async () => {
+  let providerRequest;
+  const response = await handleGenerateRecipeRequest(
+    validRequest({ craving: "" }),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async (_url, init) => {
+        providerRequest = JSON.parse(init.body);
+        return Response.json({
+          output_text: JSON.stringify({
+            recipes: [recipe("Spinach Rice Skillet"), recipe("Egg Rice Bowl"), recipe("Cheddar Spinach Cups")],
+          }),
+        });
+      },
+    },
+  );
+  const sentRequest = JSON.parse(providerRequest.input[1].content);
+
+  assert.equal(response.status, 200);
+  assert.equal(sentRequest.craving, "flexible meal ideas");
 });
 
 test("rejects provider output with malformed recipe detail arrays", async () => {

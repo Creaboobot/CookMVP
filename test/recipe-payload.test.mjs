@@ -27,3 +27,25 @@ test("builds the browser recipe request payload with user constraints", () => {
     },
   });
 });
+
+test("allows browser recipe requests without a craving", () => {
+  const payload = buildRecipeRequestPayload({
+    ingredientsText: " eggs, spinach ",
+    craving: "   ",
+    avoid: "",
+    diet: "none",
+    servings: "2",
+    maxTotalTimeMinutes: "",
+    cuisineOrFlavor: "",
+    equipment: [],
+  });
+
+  assert.deepEqual(payload, {
+    ingredientsText: "eggs, spinach",
+    craving: "",
+    constraints: {
+      diet: "none",
+      servings: 2,
+    },
+  });
+});
