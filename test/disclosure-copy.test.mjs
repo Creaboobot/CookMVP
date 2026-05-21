@@ -45,20 +45,26 @@ test("includes a reviewable voice note transcript fallback without storing raw t
   assert.match(html, /id="voice-note-input"/);
   assert.match(html, /id="voice-review-panel" hidden/);
   assert.match(html, /Parsed available items/);
-  assert.match(html, /raw transcript is used only on this page/);
+  assert.match(html, /Record voice note/);
+  assert.match(html, /Audio is sent only for transcription/);
+  assert.match(html, /raw\s+transcript is used only on this page/);
   assert.match(script, /parseVoiceNoteTranscript/);
   assert.match(script, /voiceConstraintOverrides/);
   assert.doesNotMatch(feedbackStore, /transcript/i);
 });
 
-test("gives a visible fallback when browser speech capture fails", async () => {
+test("uses in-app audio recording with clear text fallback states", async () => {
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
 
-  assert.match(script, /voiceRecognitionErrorMessage/);
-  assert.match(script, /recognition\.addEventListener\("error"/);
-  assert.match(script, /recognition\.addEventListener\("end"/);
-  assert.match(script, /keyboard microphone or paste a note below/);
-  assert.match(script, /recognition\.start\(\)/);
+  assert.match(script, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(script, /new MediaRecorder/);
+  assert.match(script, /selectVoiceRecordingMimeType/);
+  assert.match(script, /transcribeVoiceBlob/);
+  assert.match(script, /Record voice note/);
+  assert.match(script, /Stop recording/);
+  assert.match(script, /Microphone permission was blocked/);
+  assert.match(script, /Paste a transcript below/);
+  assert.doesNotMatch(script, /keyboard microphone/i);
 });
 
 test("includes per-meal follow-up UI without raw question analytics", async () => {

@@ -47,9 +47,13 @@ test("documents server-side voice transcription boundaries", async () => {
   assert.match(readme, /OPENAI_TRANSCRIPTION_MODEL/);
   assert.match(readme, /gpt-4o-mini-transcribe/);
   assert.match(readme, /does not persist raw audio/);
-  assert.match(readme, /Task 26/);
+  assert.match(readme, /MediaRecorder/);
+  assert.match(readme, /transcript field remains available/);
+  assert.match(readme, /Task 27/);
   assert.match(contract, /Voice Transcription API/);
   assert.match(contract, /multipart\/form-data/);
+  assert.match(contract, /getUserMedia/);
+  assert.match(contract, /MediaRecorder/);
   assert.match(contract, /audio\/mp4/);
   assert.match(contract, /audio\/webm/);
   assert.match(contract, /4 MB/);

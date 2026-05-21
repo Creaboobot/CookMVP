@@ -93,7 +93,7 @@ The voice transcription endpoint accepts one short multipart audio upload in the
 }
 ```
 
-Task 25 only adds the backend transcription route. The mobile in-app recording UI belongs to Task 26.
+The browser voice-note UI records short in-app audio with `MediaRecorder` when available, uploads it to this endpoint, places the returned transcript in the existing review field, and then reuses the structured voice-note parser before generation. If recording is unavailable or permission is blocked, the transcript field remains available for manual text input.
 
 See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test note, including the current local configuration result and the safe steps for repeating a real OpenAI-backed check without exposing secrets.
 
@@ -158,7 +158,7 @@ Checklist:
 1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
 2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
 3. Open Settings, set at least one baseline preference such as an avoidance, servings, meal type, available time, cuisine or flavor, or available equipment, then save settings.
-4. Enter ingredients the tester has, optionally add a craving, or use the voice-note transcript fallback to parse those fields and generate recipes. After Task 26, phone users should be able to record a short in-app voice note that uses `POST /api/voice/transcribe` before this review step.
+4. Enter ingredients the tester has, optionally add a craving, or record a short in-app voice note that uses `POST /api/voice/transcribe` before the transcript review step. If microphone permission is blocked or recording is unavailable, paste a transcript and parse those fields instead.
 5. Confirm exactly three proposals appear.
 6. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
 7. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
@@ -188,6 +188,6 @@ After each test session, use `Export session JSON` before clearing the browser-l
 - Settings are browser-local only and need to be reset manually when a tester wants default preferences again.
 - Exported session JSON is the only transfer or recovery path after clearing local data.
 - Follow-up responses are advisory; adjusted variants are displayed separately and are not saved over the original recipe.
-- Server-side voice transcription is available as an endpoint, but the in-app mobile recorder UI is still a separate Task 26 deliverable.
+- Mobile voice input uses in-app browser recording plus server-side transcription where `MediaRecorder` and microphone permission are available; unsupported browsers can still use the editable transcript fallback. Final iPhone HTTPS validation belongs to Task 27.
 - OpenAI-backed generation depends on server-side `OPENAI_API_KEY` configuration; the app can use clearly labeled deterministic fallback output for local workflow testing.
 - Cookooi provides recipe proposals, not safety, allergy, medical, or nutrition guarantees.
