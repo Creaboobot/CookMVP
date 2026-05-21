@@ -4,6 +4,7 @@ import {
   clearSessionData,
   exportSessionData,
   importSessionData,
+  isRecipeSaved,
   readSavedRecipeEntries,
   removeSavedRecipe,
   saveRecipeToLibrary,
@@ -65,6 +66,7 @@ test("stores saved recipes with session and generation metadata", () => {
   assert.equal(entry.generationId, "generation-2026-05-20T07:30:00.000Z");
   assert.equal(entry.source, "ai");
   assert.equal(readSavedRecipeEntries(storage).length, 1);
+  assert.equal(isRecipeSaved({ id: "recipe-1", title: "Rice Skillet", summary: "A quick dinner." }, storage), true);
 
   saveRecipeToLibrary({
     storage,

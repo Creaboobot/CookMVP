@@ -18,6 +18,7 @@ import {
   clearSessionData,
   exportSessionData,
   importSessionData,
+  isRecipeSaved,
   readSavedRecipeEntries,
   removeSavedRecipe,
   saveRecipeToLibrary,
@@ -110,13 +111,13 @@ function renderProposal(recipeData) {
   fragment.querySelector(".recipe-summary").textContent = recipe.summary;
   renderRecipeDetails(fragment, recipe);
 
+  setSaveButtonState({ button: saveButton, card, saved: isRecipeSaved(recipe) });
+
   saveButton.addEventListener("click", () => {
     const generationId = recipe.createdAt ? `generation-${recipe.createdAt}` : "";
     saveRecipeToLibrary({ recipe, sessionId, generationId });
     markRecipeSaved(recipe);
-    saveButton.textContent = "Saved";
-    saveButton.disabled = true;
-    card.classList.add("saved");
+    setSaveButtonState({ button: saveButton, card, saved: true });
     renderLibrary();
     renderSessionSummary();
   });
@@ -124,6 +125,12 @@ function renderProposal(recipeData) {
   card.append(createFeedbackPanel(recipe));
 
   return fragment;
+}
+
+function setSaveButtonState({ button, card, saved }) {
+  button.textContent = saved ? "Saved" : "Save";
+  button.disabled = saved;
+  card.classList.toggle("saved", saved);
 }
 
 function createFeedbackPanel(recipe) {
@@ -350,7 +357,7 @@ function renderLibrary() {
       const savedMeta = document.createElement("p");
       const detailToggle = document.createElement("details");
       const detailSummary = document.createElement("summary");
-      const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
+      const detailBody = cloneSavedRecipeDetailBody();
       const removeButton = document.createElement("button");
 
       article.className = "library-item";
@@ -378,6 +385,12 @@ function renderLibrary() {
       return article;
     }),
   );
+}
+
+function cloneSavedRecipeDetailBody() {
+  const detailBody = els.proposalTemplate.content.cloneNode(true).querySelector(".recipe-body");
+  detailBody.querySelector(".recipe-save-row")?.remove();
+  return detailBody;
 }
 
 function savedRecipeMetaText(entry) {
@@ -540,6 +553,7 @@ els.clearLibraryButton.addEventListener("click", () => {
   clearSavedRecipes();
   renderLibrary();
   renderSessionSummary();
+  renderProposals(activeProposals);
   setFeedbackStatus("Saved recipes cleared.", "neutral");
 });
 
