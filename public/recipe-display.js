@@ -67,6 +67,15 @@ export function recipeMetaItems(recipe) {
   ].filter(Boolean);
 }
 
+export function recipeOverviewCountLabel(recipe) {
+  const usedCount = Array.isArray(recipe?.usesFromAvailableItems) ? recipe.usesFromAvailableItems.length : 0;
+  const missingCount = Array.isArray(recipe?.itemsStillNeeded) ? recipe.itemsStillNeeded.length : 0;
+  const usedLabel = `${usedCount} item${usedCount === 1 ? "" : "s"} used`;
+  const missingLabel = `${missingCount} item${missingCount === 1 ? "" : "s"} still needed`;
+
+  return `${usedLabel} - ${missingLabel}`;
+}
+
 export function recipeSourceLabel(recipe) {
   if (recipe.source === "fallback") {
     return "Fallback output, not AI-generated";

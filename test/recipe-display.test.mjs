@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapServerRecipe, normalizeRecipeForDisplay, recipeMetaItems, recipeSourceLabel } from "../public/recipe-display.js";
+import {
+  mapServerRecipe,
+  normalizeRecipeForDisplay,
+  recipeMetaItems,
+  recipeOverviewCountLabel,
+  recipeSourceLabel,
+} from "../public/recipe-display.js";
 
 test("maps server recipes without dropping result details", () => {
   const mapped = mapServerRecipe(
@@ -40,6 +46,7 @@ test("maps server recipes without dropping result details", () => {
   assert.deepEqual(mapped.foodSafetyNotes, ["Cook eggs until set."]);
   assert.equal(mapped.confidenceNotes, "Assumes the rice is already cooked.");
   assert.deepEqual(recipeMetaItems(mapped), ["Prep 8 min", "Cook 15 min", "Serves 2", "Easy"]);
+  assert.equal(recipeOverviewCountLabel(mapped), "3 items used - 1 item still needed");
   assert.equal(recipeSourceLabel(mapped), "openai test-model");
 });
 
