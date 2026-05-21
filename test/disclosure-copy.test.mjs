@@ -36,3 +36,17 @@ test("includes a bounded three-more recipe action after results", async () => {
   assert.match(script, /Finding three more Cookooi meal ideas/);
   assert.match(script, /maxPreviousRecipeTitles = 12/);
 });
+
+test("includes a reviewable voice note transcript fallback without storing raw transcript analytics", async () => {
+  const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+  const feedbackStore = await readFile(new URL("../public/feedback-store.js", import.meta.url), "utf8");
+
+  assert.match(html, /id="voice-note-input"/);
+  assert.match(html, /id="voice-review-panel" hidden/);
+  assert.match(html, /Parsed available items/);
+  assert.match(html, /raw transcript is used only on this page/);
+  assert.match(script, /parseVoiceNoteTranscript/);
+  assert.match(script, /voiceConstraintOverrides/);
+  assert.doesNotMatch(feedbackStore, /transcript/i);
+});

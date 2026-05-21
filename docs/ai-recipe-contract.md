@@ -50,6 +50,12 @@ The browser must send user input to the Cookooi server only. The browser must ne
 | `constraints.equipment` | string[] | no | Available tools such as `stovetop`, `oven`, `microwave`, `blender`, `air fryer`, or `no-cook`. |
 | `constraints.mealType` | string | no | One of `flexible`, `breakfast`, `lunch`, `dinner`, or `snack`. |
 
+## Voice Note Input
+
+The browser may offer a one-note input mode that lets the user speak or paste available items, optional craving, and constraints in natural language. The MVP voice parser converts the transcript into the same request fields above, shows the parsed interpretation for user review, and then sends only the structured request payload to `/api/recipes/generate`.
+
+Voice-derived fields have higher priority than saved Settings defaults for the current request. The raw transcript must not be included in generation analytics, saved recipes, or exported session JSON by default.
+
 ## Response Contract
 
 Successful generation returns exactly three recipe proposals.

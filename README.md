@@ -1,6 +1,6 @@
 # Cookooi
 
-Cookooi is a local recipe prototype. Enter ingredients you already have, optionally add what you are craving, and the app suggests three meal ideas with used ingredients and items still needed. Baseline preferences live in browser-local Settings and apply to each request until changed. If none fit, use Try three more to request another set without re-entering the same details.
+Cookooi is a local recipe prototype. Enter ingredients you already have, optionally add what you are craving, or use one voice note to provide the same details. The app suggests three meal ideas with used ingredients and items still needed. Baseline preferences live in browser-local Settings and apply to each request until changed. If none fit, use Try three more to request another set without re-entering the same details.
 
 ## Run
 
@@ -80,9 +80,9 @@ See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test n
 
 ## Testing privacy notes
 
-Cookooi sends the ingredients the user has, any craving they add, and saved baseline settings to the server for immediate recipe generation. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
+Cookooi sends the ingredients the user has, any craving they add, saved baseline settings, and any explicit voice-note interpretation fields to the server for immediate recipe generation. The raw voice transcript stays on the page for review in this MVP and is not sent as part of the generation payload. The UI tells testers not to enter sensitive personal information and reminds them to review AI-generated proposals for allergy, freshness, and cooking-safety decisions.
 
-Saved settings, saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, baseline recipe settings, full saved recipe objects, saved timestamps, generation links, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, avoidances, or free-text cuisine/flavor preferences in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
+Saved settings, saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, baseline recipe settings, full saved recipe objects, saved timestamps, generation links, generation success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, voice transcripts, avoidances, or free-text cuisine/flavor preferences in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
 
 Current local storage keys:
 
@@ -138,7 +138,7 @@ Checklist:
 1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
 2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
 3. Open Settings, set at least one baseline preference such as an avoidance, servings, meal type, available time, cuisine or flavor, or available equipment, then save settings.
-4. Enter ingredients the tester has, optionally add a craving, and generate recipes.
+4. Enter ingredients the tester has, optionally add a craving, or use the voice-note transcript fallback to parse those fields and generate recipes.
 5. Confirm exactly three proposals appear.
 6. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
 7. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
@@ -156,7 +156,7 @@ If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also ru
 Use this short script for the first testing round:
 
 ```text
-Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Open Settings if you want Cookooi to remember baseline preferences such as allergies or ingredients you avoid, meal type, servings, time, flavor, or equipment. Add a few ingredients, optionally add what you are craving, and generate recipes. After the recipes appear, compare the items used and items still needed; if none fit, click Try three more for another set. Open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
+Cookooi helps turn ingredients you have into three meal ideas. Please do not enter sensitive personal information. Open Settings if you want Cookooi to remember baseline preferences such as allergies or ingredients you avoid, meal type, servings, time, flavor, or equipment. Add a few ingredients, optionally add what you are craving, or use one voice note and review the parsed fields before generating. After the recipes appear, compare the items used and items still needed; if none fit, click Try three more for another set. Open the details, save one recipe you might cook, and leave a Good fit or Needs work rating with an optional note. Recipes are AI-generated unless the app labels them as fallback output, so review allergy, freshness, and cooking-safety notes before cooking.
 ```
 
 After each test session, use `Export session JSON` before clearing the browser-local session data.

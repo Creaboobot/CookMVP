@@ -85,3 +85,40 @@ test("merges saved baseline settings unless current values override them", () =>
     },
   });
 });
+
+test("lets parsed voice constraints override saved baseline settings", () => {
+  const payload = buildRecipeRequestPayload(
+    {
+      ingredientsText: " potatoes, kale ",
+      craving: " quick soup ",
+      avoid: "peanuts",
+      mealType: "dinner",
+      servings: "3",
+      maxTotalTimeMinutes: "30",
+      equipment: ["stovetop"],
+    },
+    {
+      avoid: "shellfish",
+      diet: "vegetarian",
+      mealType: "lunch",
+      servings: 2,
+      maxTotalTimeMinutes: 45,
+      cuisineOrFlavor: "lemony",
+      equipment: ["oven"],
+    },
+  );
+
+  assert.deepEqual(payload, {
+    ingredientsText: "potatoes, kale",
+    craving: "quick soup",
+    constraints: {
+      avoid: "peanuts",
+      diet: "vegetarian",
+      mealType: "dinner",
+      servings: 3,
+      maxTotalTimeMinutes: 30,
+      cuisineOrFlavor: "lemony",
+      equipment: ["stovetop"],
+    },
+  });
+});

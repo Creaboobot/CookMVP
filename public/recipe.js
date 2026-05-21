@@ -26,6 +26,7 @@ import {
   sessionSummary,
 } from "./session-store.js";
 import { readRecipeSettings, resetRecipeSettings, saveRecipeSettings } from "./settings-store.js";
+import { parseVoiceNoteTranscript } from "./voice-note-parser.js";
 
 const generationTimeoutMs = 30_000;
 const sessionExportName = "cookooi-session-data.json";
@@ -57,6 +58,20 @@ const els = {
   libraryList: document.querySelector("#library-list"),
   dictateButton: document.querySelector("#dictate-button"),
   voiceStatus: document.querySelector("#voice-status"),
+  voiceNote: document.querySelector("#voice-note-input"),
+  parseVoiceButton: document.querySelector("#parse-voice-button"),
+  clearVoiceButton: document.querySelector("#clear-voice-button"),
+  voiceReviewPanel: document.querySelector("#voice-review-panel"),
+  voiceReviewStatus: document.querySelector("#voice-review-status"),
+  voiceIngredients: document.querySelector("#voice-ingredients-input"),
+  voiceCraving: document.querySelector("#voice-craving-input"),
+  voiceAvoid: document.querySelector("#voice-avoid-input"),
+  voiceDiet: document.querySelector("#voice-diet-input"),
+  voiceMealType: document.querySelector("#voice-meal-type-input"),
+  voiceServings: document.querySelector("#voice-servings-input"),
+  voiceMaxTotalTimeMinutes: document.querySelector("#voice-time-input"),
+  voiceCuisineOrFlavor: document.querySelector("#voice-cuisine-input"),
+  voiceEquipment: Array.from(document.querySelectorAll("input[name='voiceEquipment']")),
   clearResultsButton: document.querySelector("#clear-results-button"),
   clearLibraryButton: document.querySelector("#clear-library-button"),
   feedbackSummary: document.querySelector("#feedback-summary"),
@@ -72,6 +87,7 @@ let recognition = null;
 let generationInFlight = false;
 let lastSubmittedPayload = null;
 let currentRecipeSettings = readRecipeSettings();
+let voiceReviewActive = false;
 const sessionId = getSessionId();
 
 function listItems(container, items, emptyText) {
@@ -267,7 +283,50 @@ function setGenerating(isGenerating) {
   els.tryMoreButton.disabled = isGenerating || !activeProposals.length || !lastSubmittedPayload;
 }
 
+function voiceReviewFieldValues() {
+  return {
+    ingredientsText: els.voiceIngredients.value,
+    craving: els.voiceCraving.value,
+    avoid: els.voiceAvoid.value,
+    diet: els.voiceDiet.value,
+    mealType: els.voiceMealType.value,
+    servings: els.voiceServings.value,
+    maxTotalTimeMinutes: els.voiceMaxTotalTimeMinutes.value,
+    cuisineOrFlavor: els.voiceCuisineOrFlavor.value,
+    equipment: els.voiceEquipment.filter((input) => input.checked).map((input) => input.value),
+  };
+}
+
+function voiceConstraintOverrides() {
+  const values = voiceReviewFieldValues();
+  const overrides = {};
+
+  for (const field of ["avoid", "diet", "mealType", "servings", "maxTotalTimeMinutes", "cuisineOrFlavor"]) {
+    if (cleanText(values[field])) {
+      overrides[field] = values[field];
+    }
+  }
+  if (values.equipment.length) {
+    overrides.equipment = values.equipment;
+  }
+
+  return overrides;
+}
+
 function buildCurrentRecipePayload() {
+  if (voiceReviewActive) {
+    const voiceValues = voiceReviewFieldValues();
+
+    return buildRecipeRequestPayload(
+      {
+        ingredientsText: voiceValues.ingredientsText,
+        craving: voiceValues.craving,
+        ...voiceConstraintOverrides(),
+      },
+      currentRecipeSettings,
+    );
+  }
+
   return buildRecipeRequestPayload(
     {
       ingredientsText: els.ingredients.value,
@@ -518,6 +577,70 @@ function setSettingsStatus(message, tone = "neutral") {
   els.settingsStatus.dataset.tone = tone;
 }
 
+function setVoiceReviewStatus(message, tone = "neutral") {
+  els.voiceReviewStatus.textContent = message;
+  els.voiceReviewStatus.dataset.tone = tone;
+}
+
+function parseVoiceNote() {
+  const parsed = parseVoiceNoteTranscript(els.voiceNote.value);
+
+  applyVoiceParse(parsed);
+}
+
+function applyVoiceParse(parsed) {
+  const constraints = parsed.constraints || {};
+
+  voiceReviewActive = true;
+  els.voiceReviewPanel.hidden = false;
+  els.voiceIngredients.value = parsed.ingredientsText || "";
+  els.voiceCraving.value = parsed.craving || "";
+  els.voiceAvoid.value = constraints.avoid || "";
+  els.voiceDiet.value = constraints.diet || "";
+  els.voiceMealType.value = constraints.mealType || "";
+  els.voiceServings.value = constraints.servings ? String(constraints.servings) : "";
+  els.voiceMaxTotalTimeMinutes.value = constraints.maxTotalTimeMinutes ? String(constraints.maxTotalTimeMinutes) : "";
+  els.voiceCuisineOrFlavor.value = constraints.cuisineOrFlavor || "";
+  for (const input of els.voiceEquipment) {
+    input.checked = Array.isArray(constraints.equipment) && constraints.equipment.includes(input.value);
+  }
+  syncVoiceReviewToPrimaryFields();
+
+  if (parsed.ingredientsText) {
+    setVoiceReviewStatus("Parsed fields are ready. Edit them here before generating.", "success");
+  } else {
+    setVoiceReviewStatus("Add available items to the parsed fields before generating.", "error");
+  }
+}
+
+function syncVoiceReviewToPrimaryFields() {
+  if (!voiceReviewActive) {
+    return;
+  }
+
+  els.ingredients.value = els.voiceIngredients.value;
+  els.craving.value = els.voiceCraving.value;
+}
+
+function clearVoiceNote() {
+  voiceReviewActive = false;
+  els.voiceNote.value = "";
+  els.voiceReviewPanel.hidden = true;
+  els.voiceIngredients.value = "";
+  els.voiceCraving.value = "";
+  els.voiceAvoid.value = "";
+  els.voiceDiet.value = "";
+  els.voiceMealType.value = "";
+  els.voiceServings.value = "";
+  els.voiceMaxTotalTimeMinutes.value = "";
+  els.voiceCuisineOrFlavor.value = "";
+  for (const input of els.voiceEquipment) {
+    input.checked = false;
+  }
+  setVoiceReviewStatus("", "neutral");
+  els.voiceStatus.textContent = recognition ? "Voice input ready." : "Speech capture unavailable; paste a transcript below.";
+}
+
 function settingsFieldValues() {
   return {
     avoid: els.avoid.value,
@@ -602,9 +725,9 @@ function setupVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    els.voiceStatus.textContent = "Voice input unavailable; text input works.";
+    els.voiceStatus.textContent = "Speech capture unavailable; paste a transcript below.";
     els.dictateButton.disabled = true;
-    els.dictateButton.textContent = "Voice unavailable";
+    els.dictateButton.textContent = "Speech unavailable";
     return;
   }
 
@@ -614,20 +737,21 @@ function setupVoiceInput() {
   recognition.lang = "en-US";
 
   recognition.addEventListener("start", () => {
-    els.voiceStatus.textContent = "Listening for ingredients...";
+    els.voiceStatus.textContent = "Listening for one note...";
     els.dictateButton.textContent = "Listening...";
   });
 
   recognition.addEventListener("result", (event) => {
     const transcript = Array.from(event.results)
       .map((result) => result[0].transcript)
-      .join(", ");
-    els.ingredients.value = [els.ingredients.value.trim(), transcript].filter(Boolean).join(", ");
+      .join(" ");
+    els.voiceNote.value = [els.voiceNote.value.trim(), transcript].filter(Boolean).join(" ");
+    parseVoiceNote();
   });
 
   recognition.addEventListener("end", () => {
-    els.voiceStatus.textContent = "Voice input ready.";
-    els.dictateButton.textContent = "Dictate ingredients";
+    els.voiceStatus.textContent = "Voice note ready to review.";
+    els.dictateButton.textContent = "Start voice note";
   });
 
   els.voiceStatus.textContent = "Voice input ready.";
@@ -666,6 +790,13 @@ els.tryMoreButton.addEventListener("click", async () => {
 els.dictateButton.addEventListener("click", () => {
   recognition?.start();
 });
+
+els.parseVoiceButton.addEventListener("click", parseVoiceNote);
+
+els.clearVoiceButton.addEventListener("click", clearVoiceNote);
+
+els.voiceIngredients.addEventListener("input", syncVoiceReviewToPrimaryFields);
+els.voiceCraving.addEventListener("input", syncVoiceReviewToPrimaryFields);
 
 els.settingsToggleButton.addEventListener("click", () => {
   const isExpanded = els.settingsToggleButton.getAttribute("aria-expanded") === "true";

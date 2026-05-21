@@ -257,6 +257,71 @@ h1 {
   padding: 16px;
 }
 
+.voice-note-panel {
+  background: #f8fafc;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.voice-note-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.voice-note-heading h3,
+.voice-note-heading p,
+.voice-privacy,
+.voice-review-status {
+  margin-bottom: 0;
+}
+
+.voice-note-heading p,
+.voice-privacy {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.voice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.voice-review-panel {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 16px;
+}
+
+.voice-review-panel[hidden] {
+  display: none;
+}
+
+.voice-review-panel legend {
+  font-weight: 800;
+}
+
+.voice-review-status {
+  color: var(--muted);
+  font-weight: 700;
+  min-height: 22px;
+}
+
+.voice-review-status[data-tone="success"] {
+  color: var(--primary-dark);
+}
+
+.voice-review-status[data-tone="error"] {
+  color: var(--danger);
+}
+
 .settings-summary-row {
   align-items: flex-start;
   display: flex;
@@ -676,6 +741,10 @@ h1 {
   .save-button,
   .feedback-rating-button {
     width: 100%;
+  }
+
+  .voice-actions {
+    display: grid;
   }
 
   .result-followup {
