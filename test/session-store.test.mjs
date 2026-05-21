@@ -119,6 +119,7 @@ test("exports, imports, removes, and clears complete session data", () => {
   assert.equal(imported.feedbackData.feedback.length, 1);
   assert.deepEqual(sessionSummary(importedStorage), {
     generationCount: 1,
+    refinementCount: 0,
     feedbackCount: 1,
     savedRecipeCount: 1,
   });
@@ -138,6 +139,7 @@ test("exports, imports, removes, and clears complete session data", () => {
   clearSessionData(importedStorage);
   assert.deepEqual(sessionSummary(importedStorage), {
     generationCount: 0,
+    refinementCount: 0,
     feedbackCount: 0,
     savedRecipeCount: 0,
   });

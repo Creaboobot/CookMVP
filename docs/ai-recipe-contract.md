@@ -318,7 +318,9 @@ Refinement rules:
 - Preserve allergy and food-safety caution language. Never claim guaranteed safety, allergen-free output, medical suitability, or nutrition guarantees.
 - Map provider errors to the same user-safe error family as generation.
 - When fallback mode is enabled, return clearly labeled deterministic refinement guidance.
-- Leave display, follow-up composer UI, and variant saving behavior to Task 24.
+- The browser follow-up UI should render refinement output inside the selected meal detail without overwriting the original recipe.
+- Store only browser-local follow-up analytics metadata, such as question length, recipe id/title, source, feasibility, success/failure, and variant presence. Do not store raw follow-up questions in session analytics.
+- Suggested variants are advisory display output in the MVP. Do not save them over the original recipe without an explicit variant-save model.
 
 ## Terminology Requirements
 

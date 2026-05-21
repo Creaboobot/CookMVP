@@ -84,6 +84,47 @@ export function recipeSourceLabel(recipe) {
   return [recipe.provider || "AI", recipe.model].filter(Boolean).join(" ");
 }
 
+export function normalizeRefinementForDisplay(response = {}) {
+  const refinement = response.refinement && typeof response.refinement === "object" ? response.refinement : {};
+  const proposedVariant =
+    refinement.proposedVariant && typeof refinement.proposedVariant === "object"
+      ? normalizeRecipeForDisplay({
+          ...refinement.proposedVariant,
+          type: "Suggested adjustment",
+          source: response.source,
+          provider: response.provider,
+          model: response.model,
+          createdAt: response.createdAt,
+        })
+      : null;
+
+  return {
+    feasibility: refinementFeasibility(refinement.feasibility),
+    explanation: cleanText(refinement.explanation),
+    modifiedIngredients: cleanList(refinement.modifiedIngredients),
+    modifiedSteps: cleanList(refinement.modifiedSteps),
+    allergyNotes: cleanList(refinement.allergyNotes),
+    foodSafetyNotes: cleanList(refinement.foodSafetyNotes),
+    confidenceNotes: cleanText(refinement.confidenceNotes),
+    proposedVariant,
+    source: cleanText(response.source) || "ai",
+    provider: cleanText(response.provider),
+    model: cleanText(response.model),
+    createdAt: cleanText(response.createdAt),
+    warning: cleanText(response.warning),
+  };
+}
+
+export function refinementFeasibilityLabel(feasibility) {
+  const labels = {
+    works: "Works",
+    use_caution: "Use caution",
+    not_recommended: "Not recommended",
+  };
+
+  return labels[refinementFeasibility(feasibility)];
+}
+
 function cleanList(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -107,4 +148,8 @@ function titleCase(value) {
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function refinementFeasibility(value) {
+  return ["works", "use_caution", "not_recommended"].includes(value) ? value : "use_caution";
 }

@@ -48,5 +48,6 @@ test("removes proposal save action from saved library detail clones", async () =
 
   assert.match(renderLibrary, /const detailBody = cloneSavedRecipeDetailBody\(\);/);
   assert.match(cloneHelper, /querySelector\("\.recipe-save-row"\)\?\.remove\(\);/);
+  assert.match(cloneHelper, /querySelector\("\.recipe-refinement"\)\?\.remove\(\);/);
   assert.doesNotMatch(cloneHelper, /querySelector\("\.save-button"\)\?\.remove\(\);/);
 });

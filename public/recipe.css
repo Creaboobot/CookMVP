@@ -177,7 +177,8 @@ h1 {
 }
 
 .settings-status,
-.feedback-status {
+.feedback-status,
+.refinement-status {
   color: var(--muted);
   font-weight: 700;
   margin: 0;
@@ -185,12 +186,14 @@ h1 {
 }
 
 .settings-status[data-tone="success"],
-.feedback-status[data-tone="success"] {
+.feedback-status[data-tone="success"],
+.refinement-status[data-tone="success"] {
   color: var(--primary-dark);
 }
 
 .settings-status[data-tone="error"],
-.feedback-status[data-tone="error"] {
+.feedback-status[data-tone="error"],
+.refinement-status[data-tone="error"] {
   color: var(--danger);
 }
 
@@ -612,6 +615,102 @@ h1 {
   justify-content: flex-end;
 }
 
+.recipe-refinement {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.refinement-form,
+.refinement-result {
+  display: grid;
+  gap: 12px;
+}
+
+.refinement-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.refinement-status {
+  align-self: center;
+  font-size: 13px;
+}
+
+.refinement-result {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.refinement-result[hidden] {
+  display: none;
+}
+
+.refinement-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.refinement-heading h4,
+.refinement-section h5,
+.refinement-section p,
+.variant-card h5,
+.variant-card p {
+  margin-bottom: 0;
+}
+
+.refinement-feasibility {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: var(--info);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.refinement-section {
+  display: grid;
+  gap: 8px;
+}
+
+.refinement-section ul,
+.refinement-section ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.refinement-section li + li {
+  margin-top: 6px;
+}
+
+.refinement-source,
+.refinement-warning,
+.variant-note {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.variant-card {
+  border-left: 4px solid var(--primary);
+  display: grid;
+  gap: 10px;
+  padding-left: 12px;
+}
+
 .feedback-panel {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
@@ -753,5 +852,11 @@ h1 {
 
   .recipe-save-row {
     justify-content: stretch;
+  }
+
+  .refinement-actions,
+  .refinement-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

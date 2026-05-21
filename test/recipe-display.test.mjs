@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   mapServerRecipe,
   normalizeRecipeForDisplay,
+  normalizeRefinementForDisplay,
+  refinementFeasibilityLabel,
   recipeMetaItems,
   recipeOverviewCountLabel,
   recipeSourceLabel,
@@ -90,4 +92,46 @@ test("labels fallback recipes as non-AI output", () => {
 
   assert.equal(mapped.type, "Fallback result");
   assert.equal(recipeSourceLabel(mapped), "Fallback output, not AI-generated");
+});
+
+test("normalizes refinement responses with optional proposed variants", () => {
+  const refinement = normalizeRefinementForDisplay({
+    source: "fallback",
+    provider: "fallback",
+    model: "deterministic-fallback",
+    createdAt: "2026-05-21T12:00:00.000Z",
+    warning: "OpenAI is not configured.",
+    refinement: {
+      feasibility: "use_caution",
+      explanation: "Greens can work if added near the end.",
+      modifiedIngredients: ["Add leafy greens."],
+      modifiedSteps: ["Stir greens in near the end."],
+      allergyNotes: ["Check cross-contact risk."],
+      foodSafetyNotes: ["Discard wilted greens."],
+      confidenceNotes: "Best with sturdy greens.",
+      proposedVariant: {
+        title: "Potato Bacon Soup With Greens",
+        summary: "A soup with greens added near the end.",
+        usesFromAvailableItems: ["potatoes", "bacon", "leafy greens"],
+        itemsStillNeeded: ["seasoning"],
+        steps: ["Cook bacon.", "Simmer potatoes.", "Add greens.", "Serve."],
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 25,
+        servings: 2,
+        difficulty: "easy",
+        dietaryNotes: [],
+        allergyNotes: ["Check cross-contact risk."],
+        foodSafetyNotes: ["Discard wilted greens."],
+        substitutions: [],
+        confidenceNotes: "Assumes fresh greens.",
+      },
+    },
+  });
+
+  assert.equal(refinement.feasibility, "use_caution");
+  assert.equal(refinementFeasibilityLabel(refinement.feasibility), "Use caution");
+  assert.equal(refinement.proposedVariant.title, "Potato Bacon Soup With Greens");
+  assert.equal(refinement.proposedVariant.type, "Suggested adjustment");
+  assert.equal(recipeSourceLabel(refinement), "Fallback output, not AI-generated");
+  assert.equal(JSON.stringify(refinement).includes("OpenAI is not configured."), true);
 });

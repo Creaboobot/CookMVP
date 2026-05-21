@@ -14,6 +14,8 @@ test("documents the first user testing readiness flow", async () => {
   assert.match(readme, /Open Settings/);
   assert.match(readme, /Reset Settings/);
   assert.match(readme, /Save one recipe, refresh the page/);
+  assert.match(readme, /ask a follow-up/);
+  assert.match(readme, /follow-up records/);
   assert.match(readme, /Export session JSON/);
   assert.match(readme, /Tester instruction script/);
   assert.match(readme, /Known limitations for first testing/);

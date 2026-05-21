@@ -4,6 +4,7 @@ const feedbackVersion = 1;
 const maxFeedbackNoteChars = 500;
 const maxStoredGenerations = 100;
 const maxStoredFeedbackItems = 300;
+const maxStoredRefinements = 100;
 
 export function getSessionId(storage = browserStorage()) {
   const existing = cleanText(storage.getItem(sessionKey));
@@ -46,6 +47,7 @@ export function feedbackSummary(storage = browserStorage()) {
   return {
     generationCount: data.generations.length,
     feedbackCount: data.feedback.length,
+    refinementCount: data.refinements.length,
     savedRecipeCount: data.savedRecipeIds.length,
   };
 }
@@ -91,6 +93,56 @@ export function recordGenerationFailure({ payload, error, sessionId, storage = b
   };
 
   data.generations = [record, ...data.generations].slice(0, maxStoredGenerations);
+  writeFeedbackData(storage, data);
+
+  return record;
+}
+
+export function recordRefinementSuccess({ recipe, question, response, sessionId, storage = browserStorage() }) {
+  const data = readFeedbackData(storage);
+  const refinement = response?.refinement && typeof response.refinement === "object" ? response.refinement : {};
+  const createdAt = cleanText(response?.createdAt) || new Date().toISOString();
+  const source = cleanText(response?.source) || "ai";
+  const record = {
+    id: `refinement-${createdAt}`,
+    sessionId: cleanText(sessionId) || data.sessionId,
+    createdAt,
+    status: "success",
+    recipeId: cleanText(recipe?.id),
+    recipeTitle: cleanText(recipe?.title),
+    questionLength: cleanText(question).length,
+    source,
+    fallback: source === "fallback",
+    provider: cleanText(response?.provider),
+    model: cleanText(response?.model),
+    feasibility: cleanSelectValue(refinement.feasibility),
+    hasProposedVariant: Boolean(refinement.proposedVariant),
+  };
+
+  data.refinements = [record, ...data.refinements.filter((item) => item.id !== record.id)].slice(0, maxStoredRefinements);
+  writeFeedbackData(storage, data);
+
+  return record;
+}
+
+export function recordRefinementFailure({ recipe, question, error, sessionId, storage = browserStorage() }) {
+  const data = readFeedbackData(storage);
+  const createdAt = new Date().toISOString();
+  const record = {
+    id: `refinement-${createdAt}`,
+    sessionId: cleanText(sessionId) || data.sessionId,
+    createdAt,
+    status: "failure",
+    recipeId: cleanText(recipe?.id),
+    recipeTitle: cleanText(recipe?.title),
+    questionLength: cleanText(question).length,
+    source: "none",
+    fallback: false,
+    errorCode: cleanText(error?.code) || "unknown_error",
+    retryable: Boolean(error?.retryable),
+  };
+
+  data.refinements = [record, ...data.refinements].slice(0, maxStoredRefinements);
   writeFeedbackData(storage, data);
 
   return record;
@@ -211,6 +263,7 @@ function emptyFeedbackData(sessionId) {
     version: feedbackVersion,
     sessionId,
     generations: [],
+    refinements: [],
     feedback: [],
     savedRecipeIds: [],
   };
@@ -222,6 +275,9 @@ function normalizeFeedbackData(value, fallbackSessionId) {
     sessionId: cleanText(value?.sessionId) || fallbackSessionId,
     generations: Array.isArray(value?.generations)
       ? value.generations.map(normalizeGenerationRecord).filter(Boolean).slice(0, maxStoredGenerations)
+      : [],
+    refinements: Array.isArray(value?.refinements)
+      ? value.refinements.map(normalizeRefinementRecord).filter(Boolean).slice(0, maxStoredRefinements)
       : [],
     feedback: Array.isArray(value?.feedback)
       ? value.feedback.map(normalizeFeedbackRecord).filter(Boolean).slice(0, maxStoredFeedbackItems)
@@ -254,6 +310,34 @@ function normalizeGenerationRecord(record) {
     recipeCount: positiveInteger(record.recipeCount) || 0,
     savedRecipeIds: cleanTextList(record.savedRecipeIds),
     context: normalizeContext(record.context),
+  };
+}
+
+function normalizeRefinementRecord(record) {
+  const id = cleanText(record?.id);
+  const createdAt = cleanText(record?.createdAt);
+  const status = cleanText(record?.status);
+
+  if (!id || !createdAt || !["success", "failure"].includes(status)) {
+    return null;
+  }
+
+  return {
+    id,
+    sessionId: cleanText(record.sessionId),
+    createdAt,
+    status,
+    recipeId: cleanText(record.recipeId),
+    recipeTitle: cleanText(record.recipeTitle),
+    questionLength: positiveInteger(record.questionLength) || 0,
+    source: cleanText(record.source),
+    fallback: Boolean(record.fallback),
+    provider: cleanText(record.provider),
+    model: cleanText(record.model),
+    feasibility: cleanSelectValue(record.feasibility),
+    hasProposedVariant: Boolean(record.hasProposedVariant),
+    errorCode: cleanText(record.errorCode),
+    retryable: Boolean(record.retryable),
   };
 }
 

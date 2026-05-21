@@ -61,6 +61,7 @@ export function sessionSummary(storage = browserStorage()) {
 
   return {
     generationCount: feedback.generations.length,
+    refinementCount: feedback.refinements.length,
     feedbackCount: feedback.feedback.length,
     savedRecipeCount: savedRecipes.length,
   };

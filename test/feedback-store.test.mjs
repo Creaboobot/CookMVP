@@ -10,6 +10,8 @@ import {
   readFeedbackData,
   recordGenerationFailure,
   recordGenerationSuccess,
+  recordRefinementFailure,
+  recordRefinementSuccess,
   saveRecipeFeedback,
   summarizeGenerationContext,
 } from "../public/feedback-store.js";
@@ -88,9 +90,49 @@ test("records generations, feedback, and save markers in local feedback data", (
   assert.deepEqual(data.generations[0].savedRecipeIds, ["recipe-1"]);
   assert.deepEqual(feedbackSummary(storage), {
     generationCount: 1,
+    refinementCount: 0,
     feedbackCount: 1,
     savedRecipeCount: 1,
   });
+});
+
+test("records refinement analytics without raw follow-up text", () => {
+  const storage = createMemoryStorage();
+  const recipe = { id: "recipe-1", title: "Potato Bacon Soup", source: "fallback" };
+  const question = "Can I add secret family greens to this soup?";
+
+  const success = recordRefinementSuccess({
+    storage,
+    sessionId: "session-1",
+    recipe,
+    question,
+    response: {
+      createdAt: "2026-05-21T12:00:00.000Z",
+      source: "fallback",
+      provider: "fallback",
+      model: "deterministic-fallback",
+      refinement: {
+        feasibility: "use_caution",
+        proposedVariant: { title: "Potato Bacon Soup With Greens" },
+      },
+    },
+  });
+
+  const error = new Error("Unsafe request");
+  error.code = "unsafe_request";
+  error.retryable = false;
+  recordRefinementFailure({ storage, sessionId: "session-1", recipe, question: "guarantee allergen free", error });
+
+  const data = readFeedbackData(storage);
+  const storedData = JSON.stringify(data);
+
+  assert.equal(success.status, "success");
+  assert.equal(success.questionLength, question.length);
+  assert.equal(success.hasProposedVariant, true);
+  assert.equal(data.refinements.length, 2);
+  assert.equal(storedData.includes("secret family greens"), false);
+  assert.equal(storedData.includes("guarantee allergen free"), false);
+  assert.equal(feedbackSummary(storage).refinementCount, 2);
 });
 
 test("records retryable generation failures without raw payload text", () => {
