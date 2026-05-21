@@ -265,6 +265,57 @@ test("sends neutral generation goal to the provider when craving is empty", asyn
   assert.equal(sentRequest.craving, "flexible meal ideas");
 });
 
+test("sends previous recipe titles to the provider as a repeat hint", async () => {
+  let providerRequest;
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      previousRecipeTitles: [" Spinach Rice Skillet ", "Egg Rice Bowl", ""],
+    }),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async (_url, init) => {
+        providerRequest = JSON.parse(init.body);
+        return Response.json({
+          output_text: JSON.stringify({
+            recipes: [
+              recipe("Cheddar Spinach Cups"),
+              recipe("Quick Savory Rice Plate"),
+              recipe("Warm Egg And Greens Bowl"),
+            ],
+          }),
+        });
+      },
+    },
+  );
+  const sentRequest = JSON.parse(providerRequest.input[1].content);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(sentRequest.previousRecipeTitles, ["Spinach Rice Skillet", "Egg Rice Bowl"]);
+});
+
+test("returns fallback recipes that avoid previous exact titles", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      previousRecipeTitles: [
+        "Quick Available-Ingredient Skillet",
+        "Flexible Cookooi Bowl",
+        "Simple Available-Item Plate",
+      ],
+    }),
+    { COOKOOI_ENABLE_FALLBACK: "true" },
+  );
+  const body = await response.json();
+  const titles = body.recipes.map((fallbackRecipe) => fallbackRecipe.title);
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(new Set(titles).size, 3);
+  assert.deepEqual(
+    titles.filter((title) => ["Quick Available-Ingredient Skillet", "Flexible Cookooi Bowl", "Simple Available-Item Plate"].includes(title)),
+    [],
+  );
+});
+
 test("rejects provider output with malformed recipe detail arrays", async () => {
   const response = await handleGenerateRecipeRequest(
     validRequest(),

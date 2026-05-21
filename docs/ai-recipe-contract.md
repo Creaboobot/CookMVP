@@ -21,6 +21,7 @@ The browser must send user input to the Cookooi server only. The browser must ne
 {
   "ingredientsText": "eggs, spinach, rice, cheddar",
   "craving": "quick dinner",
+  "previousRecipeTitles": ["Spinach Rice Skillet"],
   "constraints": {
     "avoid": "peanuts",
     "diet": "vegetarian",
@@ -38,6 +39,7 @@ The browser must send user input to the Cookooi server only. The browser must ne
 | --- | --- | --- | --- |
 | `ingredientsText` | string | yes | Free text describing items the user has. Trim before use. Reject empty values. Limit to 1000 characters for MVP. |
 | `craving` | string | no | Optional free text describing what the user wants. Trim before use. Use a neutral default such as `flexible meal ideas` when empty. Limit to 200 characters for MVP. |
+| `previousRecipeTitles` | string[] | no | Optional bounded list of previous proposal titles from the same request context. Used only to reduce exact repeats when the user asks for another set. Limit to 12 titles, 90 characters each. |
 | `constraints` | object | no | Optional object for safety, preference, and practicality constraints. Unknown fields should be ignored or rejected consistently by the server. |
 | `constraints.avoid` | string | no | Allergies, avoidances, disliked ingredients, or ingredients the user does not want used. Limit to 500 characters for MVP. |
 | `constraints.diet` | string | no | One of `none`, `vegetarian`, `vegan`, `gluten-free`, `dairy-free`, `halal`, `kosher`, or `other`. |
@@ -167,6 +169,7 @@ The server must validate both request and response data.
 - Reject AI output that includes fields with the wrong type.
 - Clamp or reject numeric fields outside documented bounds.
 - Reject recipes that recommend using an ingredient listed in `constraints.avoid`.
+- When previous recipe titles are provided, reject exact repeated titles or prompt the provider to avoid them.
 - Reject or rewrite AI output that claims a food is definitely safe, allergen-free, medically appropriate, or nutritionally guaranteed.
 - Detect clearly non-food requests before provider generation and return the food-only message instead of a recipe payload.
 - Never return raw provider error payloads to the browser.
@@ -216,6 +219,7 @@ Cookooi provides recipe suggestions, not safety certification, medical advice, o
 The server prompt should instruct the model to:
 
 - Generate exactly three distinct recipes.
+- Avoid exact repeated titles from `previousRecipeTitles` when that repeat hint is provided.
 - Prefer items the user has.
 - Keep items still needed practical and short.
 - Respect avoidances, allergies, diet, available time, servings, and equipment.
