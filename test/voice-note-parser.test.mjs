@@ -61,6 +61,15 @@ test("keeps imperative equipment cues out of parsed avoidances", () => {
   assert.deepEqual(parsed.constraints.equipment, ["microwave"]);
 });
 
+test("keeps sentence-separated equipment cues out of parsed avoidances", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "I have potatoes, bacon, kale, and cheddar. Make dinner for three in 30 minutes. No peanuts. Stovetop only.",
+  );
+
+  assert.equal(parsed.constraints.avoid, "peanuts");
+  assert.deepEqual(parsed.constraints.equipment, ["stovetop"]);
+});
+
 test("does not send equipment transcript tail text as a request avoidance", () => {
   const parsed = parseVoiceNoteTranscript("I have rice and tofu, no shellfish, use microwave only.");
   const payload = buildRecipeRequestPayload({
