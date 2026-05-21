@@ -197,6 +197,7 @@ export function summarizeGenerationContext(payload = {}) {
     constraints: {
       hasAvoidances: Boolean(cleanText(constraints.avoid)),
       diet: cleanSelectValue(constraints.diet),
+      mealType: cleanSelectValue(constraints.mealType),
       servings: positiveInteger(constraints.servings),
       maxTotalTimeMinutes: positiveInteger(constraints.maxTotalTimeMinutes),
       hasCuisineOrFlavor: Boolean(cleanText(constraints.cuisineOrFlavor)),
@@ -264,6 +265,7 @@ function normalizeContext(context = {}) {
     constraints: {
       hasAvoidances: Boolean(context.constraints?.hasAvoidances),
       diet: cleanSelectValue(context.constraints?.diet),
+      mealType: cleanSelectValue(context.constraints?.mealType),
       servings: positiveInteger(context.constraints?.servings),
       maxTotalTimeMinutes: positiveInteger(context.constraints?.maxTotalTimeMinutes),
       hasCuisineOrFlavor: Boolean(context.constraints?.hasCuisineOrFlavor),

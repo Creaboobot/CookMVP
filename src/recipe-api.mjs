@@ -14,6 +14,7 @@ const requestRateBuckets = new Map();
 
 const allowedDiets = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "other"]);
 const allowedEquipment = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
+const allowedMealTypes = new Set(["flexible", "breakfast", "lunch", "dinner", "snack"]);
 const allowedConstraintFields = new Set([
   "avoid",
   "diet",
@@ -21,6 +22,7 @@ const allowedConstraintFields = new Set([
   "maxTotalTimeMinutes",
   "cuisineOrFlavor",
   "equipment",
+  "mealType",
 ]);
 const recipeDifficulties = new Set(["easy", "medium", "ambitious"]);
 const nonFoodSignals = [
@@ -297,6 +299,13 @@ function validateRecipeRequest(payload) {
     normalizedConstraints.equipment = [...new Set(equipment)];
   }
 
+  if (constraints.mealType !== undefined) {
+    if (typeof constraints.mealType !== "string" || !allowedMealTypes.has(constraints.mealType)) {
+      return invalid("Meal type must be one of the supported meal type options.");
+    }
+    normalizedConstraints.mealType = constraints.mealType;
+  }
+
   const promptCharacters = countUserPromptCharacters({
     ingredientsText,
     craving,
@@ -396,6 +405,7 @@ function countUserPromptCharacters(request) {
     String(request.constraints.servings || ""),
     String(request.constraints.maxTotalTimeMinutes || ""),
     request.constraints.cuisineOrFlavor,
+    request.constraints.mealType,
     ...(request.constraints.equipment || []),
   ]
     .filter(Boolean)
@@ -582,7 +592,7 @@ function createSystemPrompt() {
     "You are Cookooi, a food recipe generation service.",
     "Generate exactly three distinct recipe proposals.",
     "Prefer items the user has and keep items still needed practical and short.",
-    "Respect avoidances, allergies, diet, available time, servings, and equipment.",
+    "Respect avoidances, allergies, diet, meal type, available time, servings, and equipment.",
     "When previousRecipeTitles are provided, avoid those exact titles and generate meaningfully different alternatives.",
     "Treat avoidances as ingredients the user cannot use and state that cross-contamination cannot be assessed when allergies are provided.",
     "Include practical substitutions and concise food-safety and allergy notes.",
@@ -700,6 +710,10 @@ function fallbackRecipe(title, craving, used, servings, difficulty, constraints)
   const allergyNotes = constraints.avoid
     ? [`Avoid ${constraints.avoid}; cross-contamination cannot be assessed.`]
     : ["Check labels and avoid known allergens before cooking."];
+  const dietaryNotes = [
+    constraints.diet && constraints.diet !== "none" ? `Requested diet: ${constraints.diet}.` : "",
+    constraints.mealType && constraints.mealType !== "flexible" ? `Meal type: ${constraints.mealType}.` : "",
+  ].filter(Boolean);
 
   return {
     title,
@@ -716,7 +730,7 @@ function fallbackRecipe(title, craving, used, servings, difficulty, constraints)
     cookTimeMinutes,
     servings,
     difficulty,
-    dietaryNotes: constraints.diet && constraints.diet !== "none" ? [`Requested diet: ${constraints.diet}.`] : [],
+    dietaryNotes,
     allergyNotes,
     foodSafetyNotes: ["Cook high-risk ingredients thoroughly and reheat leftovers until steaming hot."],
     substitutions: ["Use a similar available vegetable, grain, or protein if one item is missing."],

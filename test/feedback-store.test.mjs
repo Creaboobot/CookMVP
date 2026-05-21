@@ -22,6 +22,7 @@ test("summarizes generation context without storing raw tester input", () => {
     constraints: {
       avoid: "peanuts",
       diet: "vegetarian",
+      mealType: "dinner",
       servings: 4,
       maxTotalTimeMinutes: 30,
       cuisineOrFlavor: "Thai",
@@ -36,6 +37,7 @@ test("summarizes generation context without storing raw tester input", () => {
     constraints: {
       hasAvoidances: true,
       diet: "vegetarian",
+      mealType: "dinner",
       servings: 4,
       maxTotalTimeMinutes: 30,
       hasCuisineOrFlavor: true,

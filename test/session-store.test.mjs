@@ -11,6 +11,7 @@ import {
   sessionSummary,
 } from "../public/session-store.js";
 import { recordGenerationSuccess, saveRecipeFeedback } from "../public/feedback-store.js";
+import { readRecipeSettings, saveRecipeSettings } from "../public/settings-store.js";
 
 test("normalizes legacy saved recipe arrays into session entries", () => {
   const storage = createMemoryStorage();
@@ -98,6 +99,18 @@ test("exports, imports, removes, and clears complete session data", () => {
     rating: "up",
     note: "Useful.",
   });
+  saveRecipeSettings(
+    {
+      avoid: "peanuts",
+      diet: "vegetarian",
+      mealType: "dinner",
+      servings: 4,
+      maxTotalTimeMinutes: 30,
+      cuisineOrFlavor: "smoky",
+      equipment: ["oven"],
+    },
+    storage,
+  );
 
   const importedStorage = createMemoryStorage();
   const imported = importSessionData(JSON.parse(exportSessionData(storage)), importedStorage);
@@ -109,6 +122,15 @@ test("exports, imports, removes, and clears complete session data", () => {
     feedbackCount: 1,
     savedRecipeCount: 1,
   });
+  assert.deepEqual(readRecipeSettings(importedStorage), {
+    avoid: "peanuts",
+    diet: "vegetarian",
+    mealType: "dinner",
+    servings: 4,
+    maxTotalTimeMinutes: 30,
+    cuisineOrFlavor: "smoky",
+    equipment: ["oven"],
+  });
 
   removeSavedRecipe("recipe-1", importedStorage);
   assert.equal(readSavedRecipeEntries(importedStorage).length, 0);
@@ -119,6 +141,7 @@ test("exports, imports, removes, and clears complete session data", () => {
     feedbackCount: 0,
     savedRecipeCount: 0,
   });
+  assert.equal(readRecipeSettings(importedStorage).diet, "vegetarian");
 });
 
 test("imports Task 9 feedback-only JSON without dropping saved recipes", () => {

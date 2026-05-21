@@ -1,11 +1,19 @@
+import { normalizeRecipeSettings } from "./settings-store.js";
+
 const supportedDietValues = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher"]);
 const supportedEquipmentValues = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
+const supportedMealTypes = new Set(["flexible", "breakfast", "lunch", "dinner", "snack"]);
 
-export function buildRecipeRequestPayload(values) {
+export function buildRecipeRequestPayload(values, baselineSettings = {}) {
+  const constraintValues = {
+    ...normalizeRecipeSettings(baselineSettings),
+    ...values,
+  };
+
   return {
     ingredientsText: cleanText(values.ingredientsText),
     craving: cleanText(values.craving),
-    constraints: buildConstraintsPayload(values),
+    constraints: buildConstraintsPayload(constraintValues),
   };
 }
 
@@ -16,6 +24,7 @@ export function buildConstraintsPayload(values) {
   const servings = Number.parseInt(values.servings, 10);
   const maxTotalTimeMinutes = Number.parseInt(values.maxTotalTimeMinutes, 10);
   const cuisineOrFlavor = cleanText(values.cuisineOrFlavor);
+  const mealType = cleanText(values.mealType);
   const equipment = Array.isArray(values.equipment) ? values.equipment : [];
 
   if (avoid) {
@@ -36,6 +45,10 @@ export function buildConstraintsPayload(values) {
 
   if (cuisineOrFlavor) {
     constraints.cuisineOrFlavor = cuisineOrFlavor;
+  }
+
+  if (supportedMealTypes.has(mealType)) {
+    constraints.mealType = mealType;
   }
 
   const selectedEquipment = equipment.filter((item) => supportedEquipmentValues.has(item));

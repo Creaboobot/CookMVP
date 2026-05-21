@@ -1,5 +1,6 @@
 import { getSessionId, importFeedbackData, readFeedbackData } from "./feedback-store.js";
 import { normalizeRecipeForDisplay } from "./recipe-display.js";
+import { importRecipeSettings, readRecipeSettingsRecord } from "./settings-store.js";
 
 const savedRecipesKey = "cookooi-library-v1";
 const feedbackDataKey = "cookooi-feedback-v1";
@@ -77,6 +78,7 @@ export function exportSessionData(storage = browserStorage()) {
       exportedAt: new Date().toISOString(),
       sessionId: getSessionId(storage),
       savedRecipes: readSavedRecipeEntries(storage),
+      settings: readRecipeSettingsRecord(storage),
       feedbackData: readFeedbackData(storage),
     },
     null,
@@ -102,6 +104,9 @@ export function importSessionData(candidate, storage = browserStorage()) {
   }
 
   writeSavedRecipeData(storage, normalizeSavedRecipeData(candidate, getSessionId(storage)));
+  if (candidate.settings !== undefined) {
+    importRecipeSettings(candidate.settings, storage);
+  }
   importFeedbackData(candidate.feedbackData, storage);
 
   return {
