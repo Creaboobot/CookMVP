@@ -193,11 +193,27 @@ test("rejects unrelated or unsafe refinement questions", async () => {
   assert.equal(unrelated.status, 400);
   assert.equal(unrelatedBody.error, "food_only");
 
+  const unrelatedWithFoodWords = await handleRefineRecipeRequest(
+    refineRequest({ question: "Write javascript code for this potato soup recipe." }),
+  );
+  const unrelatedWithFoodWordsBody = await unrelatedWithFoodWords.json();
+
+  assert.equal(unrelatedWithFoodWords.status, 400);
+  assert.equal(unrelatedWithFoodWordsBody.error, "food_only");
+
   const unsafe = await handleRefineRecipeRequest(refineRequest({ question: "Can you guarantee this is allergen-free?" }));
   const unsafeBody = await unsafe.json();
 
   assert.equal(unsafe.status, 400);
   assert.equal(unsafeBody.error, "unsafe_request");
+
+  const medical = await handleRefineRecipeRequest(
+    refineRequest({ question: "Can you make this medically appropriate for my heart condition?" }),
+  );
+  const medicalBody = await medical.json();
+
+  assert.equal(medical.status, 400);
+  assert.equal(medicalBody.error, "unsafe_request");
 });
 
 test("sends selected recipe and follow-up to the refinement provider", async () => {
@@ -247,6 +263,26 @@ test("rejects unsafe refinement provider output", async () => {
 
   assert.equal(response.status, 502);
   assert.equal(body.error, "invalid_ai_output");
+
+  const nutritionResponse = await handleRefineRecipeRequest(
+    refineRequest(),
+    { OPENAI_API_KEY: "test-key" },
+    {
+      fetcher: async () =>
+        Response.json({
+          output_text: JSON.stringify({
+            refinement: {
+              ...refinement(),
+              explanation: "This can be part of a weight loss nutrition plan and help treat diabetes.",
+            },
+          }),
+        }),
+    },
+  );
+  const nutritionBody = await nutritionResponse.json();
+
+  assert.equal(nutritionResponse.status, 502);
+  assert.equal(nutritionBody.error, "invalid_ai_output");
 });
 
 test("maps refinement provider errors to user-safe responses", async () => {

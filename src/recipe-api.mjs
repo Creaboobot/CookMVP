@@ -76,7 +76,11 @@ const unsafeClaims = [
   "definitely safe",
   "guaranteed safe",
   "medically appropriate",
+  "medically safe",
+  "nutrition plan",
   "nutritionally guaranteed",
+  "treat diabetes",
+  "weight loss",
 ];
 const unsafeRefinementSignals = [
   "allergen-free",
@@ -84,10 +88,26 @@ const unsafeRefinementSignals = [
   "definitely safe",
   "guarantee",
   "guaranteed safe",
+  "heart condition",
+  "medical condition",
+  "medically appropriate",
   "medically safe",
   "nutrition plan",
   "treat diabetes",
   "weight loss",
+];
+const nonFoodRefinementTaskSignals = [
+  "code",
+  "debug",
+  "essay",
+  "email",
+  "homework",
+  "javascript",
+  "legal",
+  "math",
+  "poem",
+  "python",
+  "resume",
 ];
 const fallbackTitleOptions = [
   "Quick Available-Ingredient Skillet",
@@ -1240,7 +1260,8 @@ function isClearlyOffTopicRefinement(request) {
   const question = request.question.toLowerCase();
   const hasFood = foodSignals.some((signal) => question.includes(signal));
   const hasNonFood = nonFoodSignals.some((signal) => new RegExp(`\\b${signal}\\b`, "i").test(question));
-  return hasNonFood && !hasFood;
+  const asksForNonFoodTask = nonFoodRefinementTaskSignals.some((signal) => new RegExp(`\\b${signal}\\b`, "i").test(question));
+  return asksForNonFoodTask || (hasNonFood && !hasFood);
 }
 
 function isUnsafeRefinementQuestion(question) {
