@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
-import { handleGenerateRecipeRequest, handleRefineRecipeRequest } from "./src/recipe-api.mjs";
+import { handleGenerateRecipeRequest, handleRefineRecipeRequest, handleTranscribeVoiceRequest } from "./src/recipe-api.mjs";
 
 const rootDir = fileURLToPath(new URL("./public/", import.meta.url));
 const port = Number(process.env.PORT || 3004);
@@ -53,6 +53,18 @@ const server = http.createServer(async (req, res) => {
       body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
     });
     const response = await handleRefineRecipeRequest(request, process.env);
+    await sendWebResponse(res, response);
+    return;
+  }
+
+  if (url.pathname === "/api/voice/transcribe") {
+    const body = await readRequestBody(req);
+    const request = new Request(url, {
+      method: req.method,
+      headers: req.headers,
+      body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
+    });
+    const response = await handleTranscribeVoiceRequest(request, process.env);
     await sendWebResponse(res, response);
     return;
   }

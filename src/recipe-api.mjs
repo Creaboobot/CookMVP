@@ -8,15 +8,46 @@ const MAX_PREVIOUS_RECIPE_TITLE_CHARS = 90;
 const MAX_USER_PROMPT_CHARS = 1600;
 const MAX_REFINEMENT_QUESTION_CHARS = 500;
 const MAX_REFINEMENT_PROMPT_CHARS = 5000;
+const MAX_TRANSCRIPTION_AUDIO_BYTES = 4_000_000;
+const MAX_TRANSCRIPTION_REQUEST_BYTES = MAX_TRANSCRIPTION_AUDIO_BYTES + 100_000;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 20;
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const DEFAULT_MODEL = "gpt-5.4-mini";
+const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions";
 const requestRateBuckets = new Map();
 
 const allowedDiets = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher", "other"]);
 const allowedEquipment = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
 const allowedMealTypes = new Set(["flexible", "breakfast", "lunch", "dinner", "snack"]);
+const supportedAudioMimeTypes = new Set([
+  "audio/flac",
+  "audio/mp3",
+  "audio/mp4",
+  "audio/m4a",
+  "audio/mpeg",
+  "audio/mpga",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
+const supportedAudioExtensions = new Set(["flac", "m4a", "mp3", "mp4", "mpeg", "mpga", "ogg", "wav", "webm"]);
+const mimeExtensionMap = new Map([
+  ["audio/flac", "flac"],
+  ["audio/mp3", "mp3"],
+  ["audio/mp4", "mp4"],
+  ["audio/m4a", "m4a"],
+  ["audio/mpeg", "mp3"],
+  ["audio/mpga", "mpga"],
+  ["audio/ogg", "ogg"],
+  ["audio/wav", "wav"],
+  ["audio/webm", "webm"],
+  ["audio/x-m4a", "m4a"],
+  ["audio/x-wav", "wav"],
+]);
 const allowedConstraintFields = new Set([
   "avoid",
   "diet",
@@ -323,6 +354,89 @@ export async function handleRefineRecipeRequest(request, env = {}, options = {})
   }
 }
 
+export async function handleTranscribeVoiceRequest(request, env = {}, options = {}) {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "method_not_allowed", message: "Use POST to transcribe a Cookooi voice note." }, 405, {
+      allow: "POST",
+    });
+  }
+
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("multipart/form-data")) {
+    return jsonResponse({ error: "invalid_request", message: "Upload voice note audio as multipart form data." }, 400);
+  }
+
+  const contentLength = positiveHeaderInteger(request.headers.get("content-length"));
+  if (contentLength && contentLength > MAX_TRANSCRIPTION_REQUEST_BYTES) {
+    return jsonResponse(
+      {
+        error: "audio_too_large",
+        message: "Record a shorter voice note and upload audio of 4 MB or less.",
+      },
+      413,
+    );
+  }
+
+  let formData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return jsonResponse({ error: "invalid_request", message: "Cookooi could not read the uploaded audio." }, 400);
+  }
+
+  const validation = validateTranscriptionUpload(formData);
+  if (!validation.ok) {
+    return jsonResponse({ error: validation.error, message: validation.message }, validation.status);
+  }
+
+  const rateLimit = checkRateLimit(request, env, options);
+  if (!rateLimit.ok) {
+    return jsonResponse(
+      {
+        error: "rate_limited",
+        message: `Too many voice transcription requests. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
+      },
+      429,
+      { "retry-after": String(rateLimit.retryAfterSeconds) },
+    );
+  }
+
+  const apiKey = env.OPENAI_API_KEY;
+  const model = env.OPENAI_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL;
+  if (!apiKey) {
+    return jsonResponse(
+      {
+        error: "provider_unavailable",
+        message: "Voice transcription is not configured yet. Use the text transcript field for now.",
+      },
+      503,
+    );
+  }
+
+  try {
+    const providerBody = await transcribeWithOpenAI(validation.value, {
+      apiKey,
+      model,
+      fetcher: options.fetcher || fetch,
+    });
+    const transcript = cleanText(providerBody.text);
+    if (!transcript) {
+      return jsonResponse({ error: "invalid_ai_output", message: "Cookooi could not read a transcript from this audio." }, 502);
+    }
+
+    return jsonResponse({
+      transcript,
+      source: "ai",
+      provider: "openai",
+      model,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    const providerError = classifyTranscriptionProviderError(error);
+    return jsonResponse({ error: providerError.code, message: providerError.message }, providerError.status);
+  }
+}
+
 async function parseJsonRequest(request) {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("application/json")) {
@@ -563,6 +677,40 @@ function normalizePreviousRecipeTitles(value) {
   return { ok: true, value: titles };
 }
 
+function validateTranscriptionUpload(formData) {
+  const audioFile = formData.get("audio") || formData.get("file");
+  if (!isUploadedFile(audioFile)) {
+    return invalidUpload("missing_audio", "Upload one short voice note audio file.", 400);
+  }
+
+  if (audioFile.size <= 0) {
+    return invalidUpload("missing_audio", "Upload one non-empty voice note audio file.", 400);
+  }
+
+  if (audioFile.size > MAX_TRANSCRIPTION_AUDIO_BYTES) {
+    return invalidUpload("audio_too_large", "Record a shorter voice note and upload audio of 4 MB or less.", 413);
+  }
+
+  const mimeType = normalizedAudioMimeType(audioFile);
+  const extension = extensionForAudioFile(audioFile);
+  if (!supportedAudioMimeTypes.has(mimeType) && !supportedAudioExtensions.has(extension)) {
+    return invalidUpload(
+      "unsupported_audio_type",
+      "Upload a supported audio file such as m4a, mp4, webm, wav, mp3, ogg, or flac.",
+      415,
+    );
+  }
+
+  return {
+    ok: true,
+    value: {
+      file: audioFile,
+      mimeType,
+      filename: filenameForAudioUpload(audioFile, mimeType, extension),
+    },
+  };
+}
+
 function checkRateLimit(request, env = {}, options = {}) {
   const maxRequests = positiveConfigInteger(env.COOKOOI_RATE_LIMIT_MAX_REQUESTS, DEFAULT_RATE_LIMIT_MAX_REQUESTS);
   const windowMs = positiveConfigInteger(env.COOKOOI_RATE_LIMIT_WINDOW_MS, DEFAULT_RATE_LIMIT_WINDOW_MS);
@@ -729,6 +877,46 @@ async function generateRefinementWithOpenAI(refinementRequest, { apiKey, model, 
   } catch (error) {
     if (error.name === "AbortError") {
       const timeoutError = new Error("OpenAI request timed out.");
+      timeoutError.status = 504;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function transcribeWithOpenAI(upload, { apiKey, model, fetcher }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const body = new FormData();
+  body.set("file", upload.file, upload.filename);
+  body.set("model", model);
+  body.set("response_format", "json");
+  body.set("prompt", "Short Cookooi cooking voice note with ingredients available, optional craving, and practical constraints.");
+
+  try {
+    const response = await fetcher(OPENAI_TRANSCRIPTIONS_URL, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+      },
+      body,
+      signal: controller.signal,
+    });
+
+    const providerBody = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error("OpenAI transcription request failed.");
+      error.status = response.status;
+      error.providerBody = providerBody;
+      throw error;
+    }
+
+    return providerBody;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("OpenAI transcription request timed out.");
       timeoutError.status = 504;
       throw timeoutError;
     }
@@ -1249,6 +1437,36 @@ function classifyProviderError(error) {
   };
 }
 
+function classifyTranscriptionProviderError(error) {
+  if (error.status === 429) {
+    return {
+      status: 429,
+      code: "provider_rate_limited",
+      message: "Cookooi is getting a lot of voice transcription requests. Please try again shortly.",
+    };
+  }
+  if (error.status === 504) {
+    return {
+      status: 504,
+      code: "provider_timeout",
+      message: "Voice transcription took too long. Please try again with a shorter note.",
+    };
+  }
+  if (error.status && error.status >= 500) {
+    return {
+      status: 503,
+      code: "provider_unavailable",
+      message: "Voice transcription is temporarily unavailable. Use the text transcript field or try again later.",
+    };
+  }
+
+  return {
+    status: 502,
+    code: "provider_error",
+    message: "Cookooi could not transcribe this voice note right now. Use the text transcript field or try again.",
+  };
+}
+
 function isClearlyOffTopic(request) {
   const combined = `${request.ingredientsText} ${request.craving}`.toLowerCase();
   const hasFood = foodSignals.some((signal) => combined.includes(signal));
@@ -1339,6 +1557,41 @@ function positiveConfigInteger(value, fallback) {
 
 function cleanText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function isUploadedFile(value) {
+  return value && typeof value !== "string" && typeof value.arrayBuffer === "function" && Number.isFinite(value.size);
+}
+
+function normalizedAudioMimeType(file) {
+  return cleanText(file.type).toLowerCase().split(";")[0];
+}
+
+function extensionForAudioFile(file) {
+  const name = typeof file.name === "string" ? file.name : "";
+  const match = /\.([a-z0-9]+)$/i.exec(name);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function filenameForAudioUpload(file, mimeType, extension) {
+  const sourceName = typeof file.name === "string" ? file.name : "";
+  if (sourceName && supportedAudioExtensions.has(extension)) {
+    return sourceName;
+  }
+  const fallbackExtension = mimeExtensionMap.get(mimeType) || extension || "webm";
+  return `cookooi-voice-note.${fallbackExtension}`;
+}
+
+function positiveHeaderInteger(value) {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function invalidUpload(error, message, status) {
+  return { ok: false, error, message, status };
 }
 
 function invalid(message) {
