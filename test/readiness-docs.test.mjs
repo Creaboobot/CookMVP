@@ -143,6 +143,7 @@ test("documents account and community architecture boundaries", async () => {
   ];
 
   assert.match(readme, /account-community-architecture\.md/);
+  assert.match(readme, /auth-database-environment-strategy\.md/);
   assert.match(architectureDoc, /Generated private/);
   assert.match(architectureDoc, /Saved private/);
   assert.match(architectureDoc, /Published public/);
@@ -157,4 +158,31 @@ test("documents account and community architecture boundaries", async () => {
     assert.match(architectureDoc, new RegExp(`\\\`${entity}\\\``));
   }
   assert.doesNotMatch(architectureDoc, /\bfridge\b/i);
+});
+
+test("documents auth database and environment strategy", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const architectureDoc = await readFile(new URL("../docs/account-community-architecture.md", import.meta.url), "utf8");
+  const strategyDoc = await readFile(
+    new URL("../docs/auth-database-environment-strategy.md", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(readme, /Supabase Auth plus Postgres/);
+  assert.match(architectureDoc, /auth-database-environment-strategy\.md/);
+  assert.match(strategyDoc, /Primary recommendation: Supabase Auth plus Supabase Postgres/);
+  assert.match(strategyDoc, /Fallback path: Clerk plus managed Postgres/);
+  assert.match(strategyDoc, /Cloudflare D1/);
+  assert.match(strategyDoc, /Row Level Security/);
+  assert.match(strategyDoc, /local, preview, and production/);
+  assert.match(strategyDoc, /OPENAI_API_KEY/);
+  assert.match(strategyDoc, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(strategyDoc, /SUPABASE_DB_URL/);
+  assert.match(strategyDoc, /COOKOOI_ACCOUNTS_ENABLED=false/);
+  assert.match(strategyDoc, /preview branches/);
+  assert.match(strategyDoc, /PITR/);
+  assert.match(strategyDoc, /No committed secrets/);
+  assert.match(strategyDoc, /does not add account UI, live database writes/);
+  assert.doesNotMatch(strategyDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(strategyDoc, /\bfridge\b/i);
 });
