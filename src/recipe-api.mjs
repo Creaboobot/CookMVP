@@ -300,7 +300,6 @@ function validateRecipeRequest(payload) {
   const promptCharacters = countUserPromptCharacters({
     ingredientsText,
     craving,
-    previousRecipeTitles: previousTitles.value,
     constraints: normalizedConstraints,
   });
   if (promptCharacters > MAX_USER_PROMPT_CHARS) {
@@ -398,7 +397,6 @@ function countUserPromptCharacters(request) {
     String(request.constraints.maxTotalTimeMinutes || ""),
     request.constraints.cuisineOrFlavor,
     ...(request.constraints.equipment || []),
-    ...(request.previousRecipeTitles || []),
   ]
     .filter(Boolean)
     .join(" ")

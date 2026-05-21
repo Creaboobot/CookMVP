@@ -67,6 +67,25 @@ test("rejects requests that exceed the prompt budget", async () => {
   assert.match(body.message, /shorten/i);
 });
 
+test("allows regeneration hints when the base request fits the prompt budget", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({
+      ingredientsText: "rice ".repeat(190).trim(),
+      craving: "d".repeat(200),
+      constraints: {
+        avoid: "p".repeat(430),
+      },
+      previousRecipeTitles: ["a".repeat(90), "b".repeat(90), "c".repeat(90)],
+    }),
+    { COOKOOI_ENABLE_FALLBACK: "true" },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.source, "fallback");
+  assert.equal(body.recipes.length, 3);
+});
+
 test("returns food-only response for clearly off-topic requests", async () => {
   const response = await handleGenerateRecipeRequest(
     new Request("http://cookooi.test/api/recipes/generate", {
