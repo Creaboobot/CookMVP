@@ -11,6 +11,8 @@ test("documents the first user testing readiness flow", async () => {
   assert.match(readme, /http:\/\/127\.0\.0\.1:3004/);
   assert.match(readme, /https:\/\/cookooi\.creabooboard\.win/);
   assert.match(readme, /exactly three proposals/);
+  assert.match(readme, /Open Settings/);
+  assert.match(readme, /Reset Settings/);
   assert.match(readme, /Save one recipe, refresh the page/);
   assert.match(readme, /Export session JSON/);
   assert.match(readme, /Tester instruction script/);

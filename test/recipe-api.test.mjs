@@ -210,6 +210,7 @@ test("sends validated user constraints to the provider", async () => {
       constraints: {
         avoid: " peanuts, shellfish ",
         diet: "vegetarian",
+        mealType: "dinner",
         servings: 4,
         maxTotalTimeMinutes: 30,
         cuisineOrFlavor: "bright Thai",
@@ -240,6 +241,7 @@ test("sends validated user constraints to the provider", async () => {
     maxTotalTimeMinutes: 30,
     cuisineOrFlavor: "bright Thai",
     equipment: ["oven", "air-fryer"],
+    mealType: "dinner",
   });
 });
 
@@ -410,6 +412,26 @@ test("rejects unsupported equipment constraints", async () => {
   assert.equal(response.status, 400);
   assert.equal(body.error, "invalid_request");
   assert.match(body.message, /unsupported/i);
+});
+
+test("rejects unsupported meal type constraints", async () => {
+  const response = await handleGenerateRecipeRequest(validRequest({ constraints: { mealType: "brunch-party" } }));
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_request");
+  assert.match(body.message, /meal type/i);
+});
+
+test("reflects requested meal type in deterministic fallback notes", async () => {
+  const response = await handleGenerateRecipeRequest(
+    validRequest({ constraints: { mealType: "breakfast" } }),
+    { COOKOOI_ENABLE_FALLBACK: "true" },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(body.recipes[0].dietaryNotes.join(" "), /Meal type: breakfast/);
 });
 
 test("rejects provider output that exceeds requested available time", async () => {

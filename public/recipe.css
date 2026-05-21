@@ -176,6 +176,7 @@ h1 {
   color: var(--danger);
 }
 
+.settings-status,
 .feedback-status {
   color: var(--muted);
   font-weight: 700;
@@ -183,10 +184,12 @@ h1 {
   min-height: 22px;
 }
 
+.settings-status[data-tone="success"],
 .feedback-status[data-tone="success"] {
   color: var(--primary-dark);
 }
 
+.settings-status[data-tone="error"],
 .feedback-status[data-tone="error"] {
   color: var(--danger);
 }
@@ -243,6 +246,39 @@ h1 {
 .constraint-panel legend,
 .equipment-group > span {
   font-weight: 800;
+}
+
+.settings-panel {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.settings-summary-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.settings-summary {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.settings-fields[hidden] {
+  display: none;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .disclosure-panel {
@@ -621,6 +657,7 @@ h1 {
   .card-heading,
   .section-title-row,
   .recipe-card-header,
+  .settings-summary-row,
   .library-item {
     align-items: stretch;
     flex-direction: column;

@@ -51,75 +51,111 @@
             />
           </label>
 
-          <fieldset class="constraint-panel">
-            <legend>Optional preferences</legend>
-
-            <label class="field">
-              <span>Allergies or ingredients to avoid</span>
-              <textarea
-                id="avoid-input"
-                name="avoid"
-                rows="2"
-                maxlength="500"
-                placeholder="Example: peanuts, shellfish, cilantro"
-              ></textarea>
-            </label>
-
-            <div class="constraint-grid">
-              <label class="field">
-                <span>Dietary preference</span>
-                <select id="diet-input" name="diet">
-                  <option value="none">No dietary preference</option>
-                  <option value="vegetarian">Vegetarian</option>
-                  <option value="vegan">Vegan</option>
-                  <option value="gluten-free">Gluten-free</option>
-                  <option value="dairy-free">Dairy-free</option>
-                  <option value="halal">Halal</option>
-                  <option value="kosher">Kosher</option>
-                </select>
-              </label>
-
-              <label class="field">
-                <span>Servings</span>
-                <input id="servings-input" name="servings" type="number" min="1" max="12" value="2" />
-              </label>
-
-              <label class="field">
-                <span>Available time</span>
-                <select id="time-input" name="maxTotalTimeMinutes">
-                  <option value="">Any time</option>
-                  <option value="15">15 minutes</option>
-                  <option value="30">30 minutes</option>
-                  <option value="45">45 minutes</option>
-                  <option value="60">1 hour</option>
-                  <option value="90">1.5 hours</option>
-                  <option value="120">2 hours</option>
-                </select>
-              </label>
-
-              <label class="field">
-                <span>Cuisine or flavor</span>
-                <input
-                  id="cuisine-input"
-                  name="cuisineOrFlavor"
-                  type="text"
-                  maxlength="120"
-                  placeholder="Example: Thai, smoky, bright"
-                />
-              </label>
-            </div>
-
-            <div class="equipment-group" aria-labelledby="equipment-title">
-              <span id="equipment-title">Available equipment</span>
-              <div class="checkbox-grid">
-                <label><input type="checkbox" name="equipment" value="oven" /> Oven</label>
-                <label><input type="checkbox" name="equipment" value="stovetop" /> Stovetop</label>
-                <label><input type="checkbox" name="equipment" value="microwave" /> Microwave</label>
-                <label><input type="checkbox" name="equipment" value="blender" /> Blender</label>
-                <label><input type="checkbox" name="equipment" value="air-fryer" /> Air fryer</label>
+          <section class="settings-panel" aria-labelledby="settings-title">
+            <div class="settings-summary-row">
+              <div>
+                <p class="eyebrow">Baseline settings</p>
+                <h3 id="settings-title">Saved preferences</h3>
+                <p class="settings-summary" id="settings-summary" aria-live="polite"></p>
               </div>
+              <button
+                class="secondary-button"
+                id="settings-toggle-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="settings-fields"
+              >
+                Settings
+              </button>
             </div>
-          </fieldset>
+
+            <fieldset class="constraint-panel settings-fields" id="settings-fields" hidden>
+              <legend>Recipe defaults</legend>
+
+              <label class="field">
+                <span>Allergies or ingredients to avoid</span>
+                <textarea
+                  id="avoid-input"
+                  name="avoid"
+                  rows="2"
+                  maxlength="500"
+                  placeholder="Example: peanuts, shellfish, cilantro"
+                ></textarea>
+              </label>
+
+              <div class="constraint-grid">
+                <label class="field">
+                  <span>Dietary preference</span>
+                  <select id="diet-input" name="diet">
+                    <option value="none">No dietary preference</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="gluten-free">Gluten-free</option>
+                    <option value="dairy-free">Dairy-free</option>
+                    <option value="halal">Halal</option>
+                    <option value="kosher">Kosher</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Meal type</span>
+                  <select id="meal-type-input" name="mealType">
+                    <option value="flexible">Flexible</option>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Servings</span>
+                  <input id="servings-input" name="servings" type="number" min="1" max="12" value="2" />
+                </label>
+
+                <label class="field">
+                  <span>Available time</span>
+                  <select id="time-input" name="maxTotalTimeMinutes">
+                    <option value="">Any time</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="90">1.5 hours</option>
+                    <option value="120">2 hours</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Cuisine or flavor</span>
+                  <input
+                    id="cuisine-input"
+                    name="cuisineOrFlavor"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Example: Thai, smoky, bright"
+                  />
+                </label>
+              </div>
+
+              <div class="equipment-group" aria-labelledby="equipment-title">
+                <span id="equipment-title">Available equipment</span>
+                <div class="checkbox-grid">
+                  <label><input type="checkbox" name="equipment" value="oven" /> Oven</label>
+                  <label><input type="checkbox" name="equipment" value="stovetop" /> Stovetop</label>
+                  <label><input type="checkbox" name="equipment" value="microwave" /> Microwave</label>
+                  <label><input type="checkbox" name="equipment" value="blender" /> Blender</label>
+                  <label><input type="checkbox" name="equipment" value="air-fryer" /> Air fryer</label>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button class="secondary-button" id="save-settings-button" type="button">Save settings</button>
+                <button class="text-button danger" id="reset-settings-button" type="button">Reset settings</button>
+              </div>
+              <p class="settings-status" id="settings-status" aria-live="polite"></p>
+            </fieldset>
+          </section>
 
           <aside class="disclosure-panel" aria-labelledby="disclosure-title">
             <div>
@@ -127,7 +163,7 @@
               <h3 id="disclosure-title">AI-generated recipe proposals</h3>
             </div>
             <p>
-              Cookooi processes the ingredients you have, any craving you add, and optional preferences
+              Cookooi processes the ingredients you have, any craving you add, and saved baseline settings
               to generate recipe proposals. Do not enter sensitive personal information. Review
               ingredients, allergies, freshness, and cooking safety before making a meal.
             </p>

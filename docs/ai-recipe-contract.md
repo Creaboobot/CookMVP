@@ -28,7 +28,8 @@ The browser must send user input to the Cookooi server only. The browser must ne
     "servings": 2,
     "maxTotalTimeMinutes": 30,
     "cuisineOrFlavor": "spicy",
-    "equipment": ["stovetop", "microwave"]
+    "equipment": ["stovetop", "microwave"],
+    "mealType": "dinner"
   }
 }
 ```
@@ -47,6 +48,7 @@ The browser must send user input to the Cookooi server only. The browser must ne
 | `constraints.maxTotalTimeMinutes` | number | no | Integer from 5 to 240. Treat as desired total prep plus cook time. |
 | `constraints.cuisineOrFlavor` | string | no | Optional cuisine, flavor, or style preference. Limit to 120 characters. |
 | `constraints.equipment` | string[] | no | Available tools such as `stovetop`, `oven`, `microwave`, `blender`, `air fryer`, or `no-cook`. |
+| `constraints.mealType` | string | no | One of `flexible`, `breakfast`, `lunch`, `dinner`, or `snack`. |
 
 ## Response Contract
 
@@ -222,7 +224,7 @@ The server prompt should instruct the model to:
 - Avoid exact repeated titles from `previousRecipeTitles` when that repeat hint is provided.
 - Prefer items the user has.
 - Keep items still needed practical and short.
-- Respect avoidances, allergies, diet, available time, servings, and equipment.
+- Respect avoidances, allergies, diet, meal type, available time, servings, and equipment.
 - Include practical substitutions.
 - Include concise food-safety and allergy notes where relevant.
 - Return only structured JSON matching the schema.

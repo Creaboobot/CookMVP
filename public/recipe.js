@@ -25,6 +25,7 @@ import {
   saveRecipeToLibrary,
   sessionSummary,
 } from "./session-store.js";
+import { readRecipeSettings, resetRecipeSettings, saveRecipeSettings } from "./settings-store.js";
 
 const generationTimeoutMs = 30_000;
 const sessionExportName = "cookooi-session-data.json";
@@ -36,10 +37,17 @@ const els = {
   craving: document.querySelector("#craving-input"),
   avoid: document.querySelector("#avoid-input"),
   diet: document.querySelector("#diet-input"),
+  mealType: document.querySelector("#meal-type-input"),
   servings: document.querySelector("#servings-input"),
   maxTotalTimeMinutes: document.querySelector("#time-input"),
   cuisineOrFlavor: document.querySelector("#cuisine-input"),
   equipment: Array.from(document.querySelectorAll("input[name='equipment']")),
+  settingsToggleButton: document.querySelector("#settings-toggle-button"),
+  settingsFields: document.querySelector("#settings-fields"),
+  settingsSummary: document.querySelector("#settings-summary"),
+  settingsStatus: document.querySelector("#settings-status"),
+  saveSettingsButton: document.querySelector("#save-settings-button"),
+  resetSettingsButton: document.querySelector("#reset-settings-button"),
   generateButton: document.querySelector("#generate-button"),
   tryMoreButton: document.querySelector("#try-more-button"),
   retryButton: document.querySelector("#retry-button"),
@@ -63,6 +71,7 @@ let activeProposals = [];
 let recognition = null;
 let generationInFlight = false;
 let lastSubmittedPayload = null;
+let currentRecipeSettings = readRecipeSettings();
 const sessionId = getSessionId();
 
 function listItems(container, items, emptyText) {
@@ -259,16 +268,13 @@ function setGenerating(isGenerating) {
 }
 
 function buildCurrentRecipePayload() {
-  return buildRecipeRequestPayload({
-    ingredientsText: els.ingredients.value,
-    craving: els.craving.value,
-    avoid: els.avoid.value,
-    diet: els.diet.value,
-    servings: els.servings.value,
-    maxTotalTimeMinutes: els.maxTotalTimeMinutes.value,
-    cuisineOrFlavor: els.cuisineOrFlavor.value,
-    equipment: els.equipment.filter((input) => input.checked).map((input) => input.value),
-  });
+  return buildRecipeRequestPayload(
+    {
+      ingredientsText: els.ingredients.value,
+      craving: els.craving.value,
+    },
+    currentRecipeSettings,
+  );
 }
 
 function buildRegenerationPayload(payload, proposals) {
@@ -507,6 +513,60 @@ function setFeedbackStatus(message, tone = "neutral") {
   els.feedbackStatus.dataset.tone = tone;
 }
 
+function setSettingsStatus(message, tone = "neutral") {
+  els.settingsStatus.textContent = message;
+  els.settingsStatus.dataset.tone = tone;
+}
+
+function settingsFieldValues() {
+  return {
+    avoid: els.avoid.value,
+    diet: els.diet.value,
+    mealType: els.mealType.value,
+    servings: els.servings.value,
+    maxTotalTimeMinutes: els.maxTotalTimeMinutes.value,
+    cuisineOrFlavor: els.cuisineOrFlavor.value,
+    equipment: els.equipment.filter((input) => input.checked).map((input) => input.value),
+  };
+}
+
+function applySettingsToFields(settings) {
+  els.avoid.value = settings.avoid || "";
+  els.diet.value = settings.diet || "none";
+  els.mealType.value = settings.mealType || "flexible";
+  els.servings.value = settings.servings || 2;
+  els.maxTotalTimeMinutes.value = settings.maxTotalTimeMinutes ? String(settings.maxTotalTimeMinutes) : "";
+  els.cuisineOrFlavor.value = settings.cuisineOrFlavor || "";
+  for (const input of els.equipment) {
+    input.checked = settings.equipment.includes(input.value);
+  }
+}
+
+function renderSettingsSummary() {
+  const parts = [
+    labelFromValue(currentRecipeSettings.mealType, "flexible", "Flexible meals"),
+    labelFromValue(currentRecipeSettings.diet, "none", "No diet preference"),
+    `Serves ${currentRecipeSettings.servings}`,
+    currentRecipeSettings.maxTotalTimeMinutes ? `${currentRecipeSettings.maxTotalTimeMinutes} min` : "Any time",
+    currentRecipeSettings.avoid ? "Avoidances saved" : "No avoidances",
+    currentRecipeSettings.cuisineOrFlavor || "",
+    currentRecipeSettings.equipment.length ? currentRecipeSettings.equipment.map(titleFromValue).join(", ") : "Any equipment",
+  ].filter(Boolean);
+
+  els.settingsSummary.textContent = parts.join(" - ");
+}
+
+function labelFromValue(value, defaultValue, defaultLabel) {
+  return value === defaultValue ? defaultLabel : titleFromValue(value);
+}
+
+function titleFromValue(value) {
+  return cleanText(value)
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function exportSessionJson() {
   const blob = new Blob([exportSessionData()], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -524,6 +584,9 @@ function exportSessionJson() {
 async function importSessionJson(file) {
   try {
     importSessionData(JSON.parse(await file.text()));
+    currentRecipeSettings = readRecipeSettings();
+    applySettingsToFields(currentRecipeSettings);
+    renderSettingsSummary();
     renderLibrary();
     renderSessionSummary();
     renderProposals(activeProposals);
@@ -604,6 +667,28 @@ els.dictateButton.addEventListener("click", () => {
   recognition?.start();
 });
 
+els.settingsToggleButton.addEventListener("click", () => {
+  const isExpanded = els.settingsToggleButton.getAttribute("aria-expanded") === "true";
+  els.settingsToggleButton.setAttribute("aria-expanded", String(!isExpanded));
+  els.settingsFields.hidden = isExpanded;
+});
+
+els.saveSettingsButton.addEventListener("click", () => {
+  currentRecipeSettings = saveRecipeSettings(settingsFieldValues());
+  applySettingsToFields(currentRecipeSettings);
+  renderSettingsSummary();
+  els.settingsToggleButton.setAttribute("aria-expanded", "false");
+  els.settingsFields.hidden = true;
+  setSettingsStatus("Settings saved in this browser.", "success");
+});
+
+els.resetSettingsButton.addEventListener("click", () => {
+  currentRecipeSettings = resetRecipeSettings();
+  applySettingsToFields(currentRecipeSettings);
+  renderSettingsSummary();
+  setSettingsStatus("Settings reset.", "neutral");
+});
+
 els.clearResultsButton.addEventListener("click", () => {
   activeProposals = [];
   renderProposals(activeProposals);
@@ -637,10 +722,12 @@ els.clearFeedbackButton.addEventListener("click", () => {
   renderLibrary();
   renderSessionSummary();
   renderProposals(activeProposals);
-  setFeedbackStatus("Session data cleared.", "neutral");
+  setFeedbackStatus("Session data cleared. Settings kept.", "neutral");
 });
 
 setupVoiceInput();
+applySettingsToFields(currentRecipeSettings);
+renderSettingsSummary();
 renderLibrary();
 renderSessionSummary();
 

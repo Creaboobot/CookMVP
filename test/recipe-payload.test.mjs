@@ -8,6 +8,7 @@ test("builds the browser recipe request payload with user constraints", () => {
     craving: " quick dinner ",
     avoid: " peanuts ",
     diet: "vegetarian",
+    mealType: "dinner",
     servings: "4",
     maxTotalTimeMinutes: "30",
     cuisineOrFlavor: " bright Thai ",
@@ -20,6 +21,7 @@ test("builds the browser recipe request payload with user constraints", () => {
     constraints: {
       avoid: "peanuts",
       diet: "vegetarian",
+      mealType: "dinner",
       servings: 4,
       maxTotalTimeMinutes: 30,
       cuisineOrFlavor: "bright Thai",
@@ -45,7 +47,41 @@ test("allows browser recipe requests without a craving", () => {
     craving: "",
     constraints: {
       diet: "none",
+      mealType: "flexible",
       servings: 2,
+    },
+  });
+});
+
+test("merges saved baseline settings unless current values override them", () => {
+  const payload = buildRecipeRequestPayload(
+    {
+      ingredientsText: " chickpeas, greens ",
+      craving: "   ",
+      servings: "5",
+    },
+    {
+      avoid: "shellfish",
+      diet: "vegan",
+      mealType: "lunch",
+      servings: 2,
+      maxTotalTimeMinutes: 45,
+      cuisineOrFlavor: "lemony",
+      equipment: ["stovetop"],
+    },
+  );
+
+  assert.deepEqual(payload, {
+    ingredientsText: "chickpeas, greens",
+    craving: "",
+    constraints: {
+      avoid: "shellfish",
+      diet: "vegan",
+      mealType: "lunch",
+      servings: 5,
+      maxTotalTimeMinutes: 45,
+      cuisineOrFlavor: "lemony",
+      equipment: ["stovetop"],
     },
   });
 });
