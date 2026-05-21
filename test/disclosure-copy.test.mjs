@@ -51,6 +51,16 @@ test("includes a reviewable voice note transcript fallback without storing raw t
   assert.doesNotMatch(feedbackStore, /transcript/i);
 });
 
+test("gives a visible fallback when browser speech capture fails", async () => {
+  const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+
+  assert.match(script, /voiceRecognitionErrorMessage/);
+  assert.match(script, /recognition\.addEventListener\("error"/);
+  assert.match(script, /recognition\.addEventListener\("end"/);
+  assert.match(script, /keyboard microphone or paste a note below/);
+  assert.match(script, /recognition\.start\(\)/);
+});
+
 test("includes per-meal follow-up UI without raw question analytics", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
