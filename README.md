@@ -105,6 +105,8 @@ Cookooi sends the ingredients the user has, any craving they add, saved baseline
 
 Saved settings, saved recipes, feedback capture, and lightweight analytics are browser-local for the first testing pass. The app stores an anonymous local session id, baseline recipe settings, full saved recipe objects, saved timestamps, generation links, generation success/failure records, follow-up success/failure records, fallback/source metadata, recipe ids, recipe ratings, optional tester notes, and saved-recipe markers. It does not store raw ingredients, cravings, voice transcripts, avoidances, free-text cuisine/flavor preferences, or raw follow-up questions in session analytics; those are reduced to counts, lengths, booleans, and selected non-sensitive options before storage. No accounts or server-side persistence are added.
 
+See `docs/account-community-architecture.md` for the future account and community data model, including the private/public recipe split, publication rules, likes, bookmarks, reports, rankings, and anonymous-to-account migration principles.
+
 Current local storage keys:
 
 - `cookooi-session-v1`: anonymous local session id.

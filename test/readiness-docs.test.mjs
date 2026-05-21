@@ -120,3 +120,41 @@ test("documents agent operations for future task batches", async () => {
   assert.match(operationsDoc, /CodexSandboxOffline/);
   assert.match(operationsDoc, /No-op Review Behavior/);
 });
+
+test("documents account and community architecture boundaries", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const architectureDoc = await readFile(new URL("../docs/account-community-architecture.md", import.meta.url), "utf8");
+  const requiredEntities = [
+    "users",
+    "user_profiles",
+    "recipe_requests",
+    "generated_recipes",
+    "saved_recipes",
+    "public_recipes",
+    "public_recipe_versions",
+    "recipe_publications",
+    "recipe_likes",
+    "recipe_bookmarks",
+    "recipe_reports",
+    "ranking_signals",
+    "feedback_events",
+    "follow_up_requests",
+    "audit_events",
+  ];
+
+  assert.match(readme, /account-community-architecture\.md/);
+  assert.match(architectureDoc, /Generated private/);
+  assert.match(architectureDoc, /Saved private/);
+  assert.match(architectureDoc, /Published public/);
+  assert.match(architectureDoc, /Public version/);
+  assert.match(architectureDoc, /Reported\/hidden/);
+  assert.match(architectureDoc, /voice transcripts/);
+  assert.match(architectureDoc, /raw prompts/);
+  assert.match(architectureDoc, /people-also-liked recommendations/);
+  assert.match(architectureDoc, /Anonymous-To-Account Migration/);
+  assert.match(architectureDoc, /Open Decisions Needing Human Confirmation/);
+  for (const entity of requiredEntities) {
+    assert.match(architectureDoc, new RegExp(`\\\`${entity}\\\``));
+  }
+  assert.doesNotMatch(architectureDoc, /\bfridge\b/i);
+});
