@@ -205,6 +205,12 @@ h1 {
   font-weight: 800;
 }
 
+.field .optional-note {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .field input,
 .field select,
 .field textarea {

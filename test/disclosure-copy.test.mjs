@@ -6,7 +6,7 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 
   assert.match(html, /AI-generated recipe proposals/);
-  assert.match(html, /processes the ingredients you have, your craving, and optional preferences/);
+  assert.match(html, /processes the ingredients you have, any craving you add, and optional preferences/);
   assert.match(html, /Do not enter sensitive personal information/);
   assert.match(html, /allergies, freshness, and cooking safety/);
   assert.match(html, /Saved recipes and test-session data stay in this browser/);

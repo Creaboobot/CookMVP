@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Cookooi generates practical meal ideas from items the user already has, a craving or goal, and optional constraints. This contract defines the server request, the AI response shape, validation rules, and food-safety boundaries that later implementation tasks must follow.
+Cookooi generates practical meal ideas from items the user already has, an optional craving or goal, and optional constraints. This contract defines the server request, the AI response shape, validation rules, and food-safety boundaries that later implementation tasks must follow.
 
 This task is documentation-only. Runtime behavior should not change until the server and UI tasks implement this contract.
 
@@ -37,7 +37,7 @@ The browser must send user input to the Cookooi server only. The browser must ne
 | Field | Type | Required | Rules |
 | --- | --- | --- | --- |
 | `ingredientsText` | string | yes | Free text describing items the user has. Trim before use. Reject empty values. Limit to 1000 characters for MVP. |
-| `craving` | string | yes | Free text describing what the user wants. Trim before use. Reject empty values. Limit to 200 characters for MVP. |
+| `craving` | string | no | Optional free text describing what the user wants. Trim before use. Use a neutral default such as `flexible meal ideas` when empty. Limit to 200 characters for MVP. |
 | `constraints` | object | no | Optional object for safety, preference, and practicality constraints. Unknown fields should be ignored or rejected consistently by the server. |
 | `constraints.avoid` | string | no | Allergies, avoidances, disliked ingredients, or ingredients the user does not want used. Limit to 500 characters for MVP. |
 | `constraints.diet` | string | no | One of `none`, `vegetarian`, `vegan`, `gluten-free`, `dairy-free`, `halal`, `kosher`, or `other`. |
@@ -159,7 +159,7 @@ Successful generation returns exactly three recipe proposals.
 The server must validate both request and response data.
 
 - Reject non-JSON or malformed JSON requests with HTTP 400.
-- Reject missing or empty `ingredientsText` and `craving` with HTTP 400.
+- Reject missing or empty `ingredientsText` with HTTP 400. Allow empty `craving` and use a neutral default for generation.
 - Reject or trim inputs that exceed documented MVP limits. Prefer rejecting with a useful message when truncation would change safety meaning.
 - Normalize whitespace for prompt construction, but preserve original user terms where useful for display.
 - Require exactly three recipes in successful responses.
@@ -195,7 +195,7 @@ Example:
 ```json
 {
   "error": "food_only",
-  "message": "I only cook up food recipes here. Give me ingredients and a craving, and I will get back to the kitchen."
+  "message": "I only cook up food recipes here. Give me ingredients, and I will get back to the kitchen."
 }
 ```
 
