@@ -11,6 +11,7 @@ import {
   mapServerRecipe,
   normalizeRecipeForDisplay,
   recipeMetaItems,
+  recipeOverviewCountLabel,
   recipeSourceLabel,
 } from "./recipe-display.js";
 import {
@@ -90,7 +91,7 @@ function listMetaItems(container, items) {
 }
 
 function renderRecipeDetails(root, recipe) {
-  listMetaItems(root.querySelector(".recipe-meta"), recipeMetaItems(recipe));
+  listMetaItems(root.querySelector(".recipe-detail-meta"), recipeMetaItems(recipe));
   listItems(root.querySelector(".used-list"), recipe.usesFromAvailableItems, "No available items listed.");
   listItems(root.querySelector(".missing-list"), recipe.itemsStillNeeded, "No extra items listed.");
   listItems(root.querySelector(".steps-list"), recipe.steps, "No preparation steps listed.");
@@ -99,7 +100,24 @@ function renderRecipeDetails(root, recipe) {
   listItems(root.querySelector(".allergy-list"), recipe.allergyNotes, "No allergy notes provided.");
   listItems(root.querySelector(".safety-list"), recipe.foodSafetyNotes, "No food-safety notes provided.");
   root.querySelector(".confidence-note").textContent = recipe.confidenceNotes || "No confidence note provided.";
-  root.querySelector(".recipe-source").textContent = recipeSourceLabel(recipe);
+  root.querySelector(".recipe-detail-source").textContent = recipeSourceLabel(recipe);
+}
+
+function renderRecipeOverview(root, recipe) {
+  listMetaItems(root.querySelector(".recipe-overview-meta"), recipeMetaItems(recipe));
+  root.querySelector(".recipe-overview-source").textContent = recipeSourceLabel(recipe);
+  root.querySelector(".recipe-used-count").textContent = recipeOverviewCountLabel(recipe);
+}
+
+function setupRecipeDetailToggle(root) {
+  const detailToggle = root.querySelector(".recipe-detail-toggle");
+  const toggleText = root.querySelector(".recipe-toggle-text");
+  const syncToggleText = () => {
+    toggleText.textContent = detailToggle.open ? "Hide meal details" : "Open meal details";
+  };
+
+  syncToggleText();
+  detailToggle.addEventListener("toggle", syncToggleText);
 }
 
 function renderProposal(recipeData) {
@@ -111,7 +129,9 @@ function renderProposal(recipeData) {
   fragment.querySelector(".recipe-type").textContent = recipe.type;
   fragment.querySelector("h3").textContent = recipe.title;
   fragment.querySelector(".recipe-summary").textContent = recipe.summary;
+  renderRecipeOverview(fragment, recipe);
   renderRecipeDetails(fragment, recipe);
+  setupRecipeDetailToggle(fragment);
 
   setSaveButtonState({ button: saveButton, card, saved: isRecipeSaved(recipe) });
 
@@ -124,7 +144,7 @@ function renderProposal(recipeData) {
     renderSessionSummary();
   });
 
-  card.append(createFeedbackPanel(recipe));
+  fragment.querySelector(".recipe-interactions").append(createFeedbackPanel(recipe));
 
   return fragment;
 }

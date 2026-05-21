@@ -375,19 +375,72 @@ h1 {
   border-color: #99f6e4;
 }
 
+.recipe-detail-toggle {
+  display: grid;
+}
+
+.recipe-overview {
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  outline: none;
+}
+
+.recipe-overview::-webkit-details-marker {
+  display: none;
+}
+
+.recipe-overview:focus-visible {
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.15);
+}
+
 .recipe-summary,
 .library-item span,
 .saved-recipe-meta,
+.recipe-used-count,
 .confidence-note,
 .empty-state p {
   color: var(--muted);
   line-height: 1.55;
 }
 
+.recipe-overview-footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.recipe-used-count,
+.recipe-toggle-text {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recipe-toggle-text {
+  color: var(--primary-dark);
+  white-space: nowrap;
+}
+
+.recipe-toggle-text::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.recipe-detail-toggle[open] .recipe-toggle-text::before {
+  content: "-";
+}
+
 .recipe-body {
+  border-top: 1px solid #fed7aa;
   display: grid;
   gap: 16px;
   margin-top: 18px;
+  padding-top: 18px;
 }
 
 .recipe-meta {
