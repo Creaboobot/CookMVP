@@ -7,7 +7,17 @@ import {
   publicRecipesEnabled,
   readCookooiFeatureFlags,
 } from "../src/feature-flags.mjs";
-import { createRequestContext } from "../src/request-context.mjs";
+import {
+  authRoles,
+  authorizeCommunityInteraction,
+  authorizeModerationAction,
+  authorizePrivateResourceAccess,
+  authorizePublicRecipeRead,
+  authorizationReasons,
+  createAuthenticatedIdentity,
+  createRequestContext,
+  isAuthenticated,
+} from "../src/request-context.mjs";
 import { handleGenerateRecipeRequest, handleRefineRecipeRequest, handleTranscribeVoiceRequest } from "../src/recipe-api.mjs";
 import { createLocalOnlyDataServices } from "../public/local-data-services.js";
 
@@ -55,12 +65,7 @@ test("data services are disabled by default for future backend work", async () =
 test("enabled feature gates call only the matching backend adapters", async () => {
   const calls = [];
   const services = createDataServices({
-    env: {
-      COOKOOI_ACCOUNTS_ENABLED: "true",
-      COOKOOI_SERVER_LIBRARY_ENABLED: "true",
-      COOKOOI_PUBLIC_RECIPES_ENABLED: "true",
-      COOKOOI_COMMUNITY_SIGNALS_ENABLED: "true",
-    },
+    env: enabledAccountAndCommunityEnv(),
     adapters: {
       userProfiles: {
         getCurrentProfile(context) {
@@ -88,7 +93,7 @@ test("enabled feature gates call only the matching backend adapters", async () =
       },
     },
   });
-  const context = testContext();
+  const context = authenticatedTestContext("user-1");
 
   assert.deepEqual(await services.userProfiles.getCurrentProfile(context), { displayName: "Tester" });
   assert.deepEqual(await services.recipeRequests.recordRecipeRequest(context, { ingredientsText: "rice" }), {
@@ -98,14 +103,14 @@ test("enabled feature gates call only the matching backend adapters", async () =
   assert.deepEqual(await services.publicRecipes.listPublicRecipes(context), [{ id: "public-1" }]);
   assert.deepEqual(await services.interactions.recordBookmark(context, "public-1"), { stored: true });
   assert.deepEqual(calls, [
-    ["profile", "anonymous"],
+    ["profile", "authenticated"],
     ["request", "rice"],
     ["public"],
     ["bookmark", "public-1"],
   ]);
 });
 
-test("request context is anonymous and exposes disabled flags to API routes", () => {
+test("request context ignores client-supplied user ids and uses only verified server identity", () => {
   const context = createRequestContext(
     new Request("http://cookooi.test/api/recipes/generate", {
       headers: {
@@ -122,6 +127,118 @@ test("request context is anonymous and exposes disabled flags to API routes", ()
   assert.equal(context.identity.state, "anonymous");
   assert.equal(context.identity.userId, null);
   assert.equal(context.featureFlags.accounts, false);
+
+  const verified = createRequestContext(
+    new Request("http://cookooi.test/api/recipes/generate", {
+      headers: {
+        "x-cookooi-session": "session-2",
+        "x-cookooi-user-id": "client-spoof",
+      },
+    }),
+    {},
+    {
+      verifiedIdentity: { userId: "server-user-1", roles: ["moderator", "unknown-role"] },
+    },
+  );
+
+  assert.equal(verified.identity.state, "authenticated");
+  assert.equal(verified.identity.userId, "server-user-1");
+  assert.deepEqual(verified.identity.roles, ["user", "moderator"]);
+  assert.equal(isAuthenticated(verified), true);
+});
+
+test("authorization helpers keep private, public, and moderation rules distinct", () => {
+  const anonymous = testContext();
+  const owner = authenticatedTestContext("user-1");
+  const otherUser = authenticatedTestContext("user-2");
+  const moderator = {
+    ...authenticatedTestContext("moderator-1"),
+    identity: createAuthenticatedIdentity({ userId: "moderator-1", roles: [authRoles.moderator] }),
+  };
+
+  assert.deepEqual(authorizePrivateResourceAccess(anonymous, "user-1"), {
+    allowed: false,
+    reason: authorizationReasons.authenticationRequired,
+  });
+  assert.deepEqual(authorizePrivateResourceAccess(owner, "user-1"), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePrivateResourceAccess(otherUser, "user-1"), {
+    allowed: false,
+    reason: authorizationReasons.ownerRequired,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(anonymous, { status: "published" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(otherUser, { status: "draft_publication", ownerUserId: "user-1" }), {
+    allowed: false,
+    reason: authorizationReasons.publicRecipeNotPublished,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(owner, { status: "draft_publication", ownerUserId: "user-1" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizeModerationAction(owner), {
+    allowed: false,
+    reason: authorizationReasons.moderatorRoleRequired,
+  });
+  assert.deepEqual(authorizeModerationAction(moderator), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+});
+
+test("enabled account and community writes require authenticated context", async () => {
+  const calls = [];
+  const services = createDataServices({
+    env: enabledAccountAndCommunityEnv(),
+    adapters: {
+      recipeRequests: {
+        recordRecipeRequest() {
+          calls.push("request");
+          return { stored: true };
+        },
+      },
+      publicRecipes: {
+        listPublicRecipes() {
+          calls.push("public-list");
+          return [{ id: "public-1", status: "published" }];
+        },
+        publishRecipe() {
+          calls.push("publish");
+          return { stored: true };
+        },
+      },
+      interactions: {
+        recordLike() {
+          calls.push("like");
+          return { stored: true };
+        },
+      },
+    },
+  });
+  const anonymous = testContext();
+
+  assert.deepEqual(await services.recipeRequests.recordRecipeRequest(anonymous, { ingredientsText: "rice" }), {
+    stored: false,
+    reason: authorizationReasons.authenticationRequired,
+  });
+  assert.deepEqual(await services.publicRecipes.listPublicRecipes(anonymous), [{ id: "public-1", status: "published" }]);
+  assert.deepEqual(await services.publicRecipes.publishRecipe(anonymous, { savedRecipeId: "saved-1" }), {
+    stored: false,
+    reason: authorizationReasons.authenticationRequired,
+  });
+  assert.deepEqual(await services.interactions.recordLike(anonymous, "public-1"), {
+    stored: false,
+    reason: authorizationReasons.authenticationRequired,
+  });
+  assert.deepEqual(authorizeCommunityInteraction(anonymous), {
+    allowed: false,
+    reason: authorizationReasons.authenticationRequired,
+  });
+  assert.deepEqual(calls, ["public-list"]);
 });
 
 test("local-only services preserve saved recipes, settings, and feedback behavior", () => {
@@ -225,6 +342,23 @@ function testContext() {
     identity: { state: "anonymous", userId: null, roles: [] },
     featureFlags: readCookooiFeatureFlags(),
     sessionId: "session-1",
+  };
+}
+
+function authenticatedTestContext(userId) {
+  return {
+    identity: createAuthenticatedIdentity({ userId }),
+    featureFlags: readCookooiFeatureFlags(enabledAccountAndCommunityEnv()),
+    sessionId: "session-1",
+  };
+}
+
+function enabledAccountAndCommunityEnv() {
+  return {
+    COOKOOI_ACCOUNTS_ENABLED: "true",
+    COOKOOI_SERVER_LIBRARY_ENABLED: "true",
+    COOKOOI_PUBLIC_RECIPES_ENABLED: "true",
+    COOKOOI_COMMUNITY_SIGNALS_ENABLED: "true",
   };
 }
 
