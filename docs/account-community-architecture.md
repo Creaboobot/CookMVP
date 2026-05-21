@@ -504,7 +504,7 @@ People-also-liked recommendations should use co-like and co-bookmark patterns be
 
 ## Open Decisions Needing Human Confirmation
 
-- Final auth provider and database strategy are intentionally left to the follow-up backend strategy task.
+- Task 29 recommends Supabase Auth plus Supabase Postgres as the primary auth/database strategy; see `docs/auth-database-environment-strategy.md` before implementing schema or account work.
 - Whether public user profiles should require unique handles before the first public recipe.
 - Whether public recipes can display optional creator-written allergy or diet notes, and how those notes are reviewed.
 - Moderation SLA and who can hide or restore reported recipes.
@@ -514,7 +514,7 @@ People-also-liked recommendations should use co-like and co-bookmark patterns be
 
 ## Implementation Guidance For Later Agents
 
-- Do not implement public/community tables before the auth and database strategy is approved.
+- Do not implement public/community tables before the auth and database strategy in `docs/auth-database-environment-strategy.md` is approved for live account work.
 - Keep account migration private-first; do not turn existing saved recipes into public recipes automatically.
 - Treat publication as a copy-and-sanitize workflow, not a visibility toggle on `saved_recipes`.
 - Add tests for every privacy boundary: no raw prompts, transcripts, private notes, follow-up questions, or personal constraints in public APIs.
