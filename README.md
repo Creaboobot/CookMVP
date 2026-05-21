@@ -60,12 +60,13 @@ Future Cookooi task batches should run implementation under a publish-capable Wi
 
 See `docs/agent-operations.md` for the required health-check command, mirror repair expectations, connector fallback rules, and the no-duplicate-support-task policy for the known runtime identity blocker.
 
-## Recipe generation API
+## Recipe APIs
 
 The server exposes:
 
 ```text
 POST /api/recipes/generate
+POST /api/recipes/refine
 ```
 
 The endpoint reads provider configuration from the server environment only:
@@ -75,6 +76,8 @@ The endpoint reads provider configuration from the server environment only:
 - `COOKOOI_ENABLE_FALLBACK=true`: optional testing mode for deterministic fallback output when OpenAI is unavailable.
 
 Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
+
+The refinement endpoint accepts one selected recipe plus one bounded follow-up question and returns a structured feasibility answer with suggested ingredient/step changes, allergy notes, food-safety notes, and an optional proposed variant. It does not overwrite the original recipe; Task 24 owns the follow-up UI and any variant display or saving behavior.
 
 See `docs/openai-provider-verification.md` for the Task 14 provider smoke-test note, including the current local configuration result and the safe steps for repeating a real OpenAI-backed check without exposing secrets.
 

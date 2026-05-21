@@ -1,4 +1,4 @@
-import { handleGenerateRecipeRequest } from "./recipe-api.mjs";
+import { handleGenerateRecipeRequest, handleRefineRecipeRequest } from "./recipe-api.mjs";
 
 export default {
   async fetch(request, env) {
@@ -6,6 +6,10 @@ export default {
 
     if (url.pathname === "/api/recipes/generate") {
       return handleGenerateRecipeRequest(request, env);
+    }
+
+    if (url.pathname === "/api/recipes/refine") {
+      return handleRefineRecipeRequest(request, env);
     }
 
     return env.ASSETS.fetch(request);

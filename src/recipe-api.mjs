@@ -6,6 +6,8 @@ const MAX_CUISINE_OR_FLAVOR_CHARS = 120;
 const MAX_PREVIOUS_RECIPE_TITLES = 12;
 const MAX_PREVIOUS_RECIPE_TITLE_CHARS = 90;
 const MAX_USER_PROMPT_CHARS = 1600;
+const MAX_REFINEMENT_QUESTION_CHARS = 500;
+const MAX_REFINEMENT_PROMPT_CHARS = 5000;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 20;
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const DEFAULT_MODEL = "gpt-5.4-mini";
@@ -25,6 +27,7 @@ const allowedConstraintFields = new Set([
   "mealType",
 ]);
 const recipeDifficulties = new Set(["easy", "medium", "ambitious"]);
+const refinementFeasibilities = new Set(["works", "use_caution", "not_recommended"]);
 const nonFoodSignals = [
   "code",
   "debug",
@@ -41,6 +44,7 @@ const nonFoodSignals = [
 ];
 const foodSignals = [
   "apple",
+  "bacon",
   "bean",
   "beef",
   "bread",
@@ -51,6 +55,8 @@ const foodSignals = [
   "fish",
   "flour",
   "garlic",
+  "greens",
+  "kale",
   "milk",
   "mushroom",
   "noodle",
@@ -70,7 +76,38 @@ const unsafeClaims = [
   "definitely safe",
   "guaranteed safe",
   "medically appropriate",
+  "medically safe",
+  "nutrition plan",
   "nutritionally guaranteed",
+  "treat diabetes",
+  "weight loss",
+];
+const unsafeRefinementSignals = [
+  "allergen-free",
+  "allergen free",
+  "definitely safe",
+  "guarantee",
+  "guaranteed safe",
+  "heart condition",
+  "medical condition",
+  "medically appropriate",
+  "medically safe",
+  "nutrition plan",
+  "treat diabetes",
+  "weight loss",
+];
+const nonFoodRefinementTaskSignals = [
+  "code",
+  "debug",
+  "essay",
+  "email",
+  "homework",
+  "javascript",
+  "legal",
+  "math",
+  "poem",
+  "python",
+  "resume",
 ];
 const fallbackTitleOptions = [
   "Quick Available-Ingredient Skillet",
@@ -172,6 +209,114 @@ export async function handleGenerateRecipeRequest(request, env = {}, options = {
 
     if (fallbackEnabled && providerError.status !== 429) {
       return jsonResponse(createFallbackResponse(recipeRequest, model, providerError.fallbackWarning), 200);
+    }
+
+    return jsonResponse({ error: providerError.code, message: providerError.message }, providerError.status);
+  }
+}
+
+export async function handleRefineRecipeRequest(request, env = {}, options = {}) {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "method_not_allowed", message: "Use POST to refine a Cookooi recipe." }, 405, {
+      allow: "POST",
+    });
+  }
+
+  let payload;
+  try {
+    payload = await parseJsonRequest(request);
+  } catch (error) {
+    return jsonResponse({ error: "invalid_json", message: error.message }, 400);
+  }
+
+  const validation = validateRefinementRequest(payload);
+  if (!validation.ok) {
+    return jsonResponse({ error: "invalid_request", message: validation.message }, 400);
+  }
+
+  const refinementRequest = validation.value;
+  if (isClearlyOffTopicRefinement(refinementRequest)) {
+    return jsonResponse(
+      {
+        error: "food_only",
+        message: "I can only help refine food recipes here. Ask about changing this meal, and I will keep it in the kitchen.",
+      },
+      400,
+    );
+  }
+
+  if (isUnsafeRefinementQuestion(refinementRequest.question)) {
+    return jsonResponse(
+      {
+        error: "unsafe_request",
+        message: "Cookooi cannot guarantee allergy, medical, or nutrition safety. Ask for a practical cooking change instead.",
+      },
+      400,
+    );
+  }
+
+  const rateLimit = checkRateLimit(request, env, options);
+  if (!rateLimit.ok) {
+    return jsonResponse(
+      {
+        error: "rate_limited",
+        message: `Too many recipe requests. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
+      },
+      429,
+      { "retry-after": String(rateLimit.retryAfterSeconds) },
+    );
+  }
+
+  const apiKey = env.OPENAI_API_KEY;
+  const model = env.OPENAI_MODEL || DEFAULT_MODEL;
+  const fallbackEnabled = env.COOKOOI_ENABLE_FALLBACK === "true";
+
+  if (!apiKey) {
+    if (fallbackEnabled) {
+      return jsonResponse(
+        createFallbackRefinementResponse(refinementRequest, model, "OpenAI is not configured for this environment."),
+        200,
+      );
+    }
+
+    return jsonResponse(
+      { error: "provider_unavailable", message: "Recipe refinement is not configured yet. Please try again later." },
+      503,
+    );
+  }
+
+  try {
+    const aiResponse = await generateRefinementWithOpenAI(refinementRequest, {
+      apiKey,
+      model,
+      fetcher: options.fetcher || fetch,
+    });
+    const parsed = parseProviderJson(aiResponse);
+    const validationResult = validateRefinementResponse(parsed, refinementRequest);
+
+    if (!validationResult.ok) {
+      if (fallbackEnabled) {
+        return jsonResponse(
+          createFallbackRefinementResponse(refinementRequest, model, "AI refinement output could not be validated."),
+          200,
+        );
+      }
+
+      return jsonResponse({ error: "invalid_ai_output", message: "Cookooi could not validate the refinement response." }, 502);
+    }
+
+    return jsonResponse({
+      refinement: validationResult.refinement,
+      source: "ai",
+      provider: "openai",
+      model,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    const providerError = classifyProviderError(error);
+
+    if (fallbackEnabled && providerError.status !== 429) {
+      return jsonResponse(createFallbackRefinementResponse(refinementRequest, model, providerError.fallbackWarning), 200);
     }
 
     return jsonResponse({ error: providerError.code, message: providerError.message }, providerError.status);
@@ -328,6 +473,74 @@ function validateRecipeRequest(payload) {
   };
 }
 
+function validateRefinementRequest(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return invalid("Request body must be a JSON object.");
+  }
+
+  const recipe = validateRecipe(payload.recipe, {});
+  if (!recipe) {
+    return invalid("Provide a complete selected recipe to refine.");
+  }
+
+  if (payload.question !== undefined && typeof payload.question !== "string") {
+    return invalid("Follow-up question must be text.");
+  }
+  const question = cleanText(payload.question);
+  if (!question) {
+    return invalid("Add a question or requested change for this recipe.");
+  }
+  if (question.length > MAX_REFINEMENT_QUESTION_CHARS) {
+    return invalid(`Follow-up question must be ${MAX_REFINEMENT_QUESTION_CHARS} characters or fewer.`);
+  }
+
+  const generation = normalizeGenerationMetadata(payload.generation);
+  if (!generation.ok) {
+    return generation;
+  }
+
+  const promptCharacters = JSON.stringify({ recipe, question, generation: generation.value }).length;
+  if (promptCharacters > MAX_REFINEMENT_PROMPT_CHARS) {
+    return invalid("This recipe follow-up is too large for this test build. Shorten the selected recipe or question.");
+  }
+
+  return {
+    ok: true,
+    value: {
+      recipe,
+      question,
+      generation: generation.value,
+    },
+  };
+}
+
+function normalizeGenerationMetadata(value) {
+  if (value === undefined) {
+    return { ok: true, value: {} };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return invalid("Generation metadata must be an object when provided.");
+  }
+
+  const metadata = {};
+  for (const field of ["source", "provider", "model", "createdAt"]) {
+    if (value[field] !== undefined) {
+      if (typeof value[field] !== "string") {
+        return invalid(`Generation metadata ${field} must be text.`);
+      }
+      const cleaned = cleanText(value[field]);
+      if (cleaned.length > 120) {
+        return invalid(`Generation metadata ${field} is too long.`);
+      }
+      if (cleaned) {
+        metadata[field] = cleaned;
+      }
+    }
+  }
+
+  return { ok: true, value: metadata };
+}
+
 function normalizePreviousRecipeTitles(value) {
   if (value === undefined) {
     return { ok: true, value: [] };
@@ -469,6 +682,62 @@ async function generateWithOpenAI(recipeRequest, { apiKey, model, fetcher }) {
   }
 }
 
+async function generateRefinementWithOpenAI(refinementRequest, { apiKey, model, fetcher }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const response = await fetcher(OPENAI_RESPONSES_URL, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: [
+          {
+            role: "system",
+            content: createRefinementSystemPrompt(),
+          },
+          {
+            role: "user",
+            content: JSON.stringify(refinementRequest),
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "cookooi_recipe_refinement_response",
+            schema: refinementResponseSchema(),
+            strict: true,
+          },
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error("OpenAI request failed.");
+      error.status = response.status;
+      error.providerBody = body;
+      throw error;
+    }
+
+    return body;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("OpenAI request timed out.");
+      timeoutError.status = 504;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function parseProviderJson(providerBody) {
   const candidates = [
     providerBody.output_text,
@@ -526,6 +795,71 @@ function validateRecipeResponse(payload, request) {
   }
 
   return { ok: true, recipes };
+}
+
+function validateRefinementResponse(payload, request) {
+  if (!payload || typeof payload !== "object" || !payload.refinement || typeof payload.refinement !== "object") {
+    return { ok: false };
+  }
+
+  const refinement = payload.refinement;
+  const feasibility = refinement.feasibility;
+  const explanation = validString(refinement.explanation, 800);
+  const modifiedIngredients = validStringArray(refinement.modifiedIngredients, 12, 120);
+  const modifiedSteps = validStringArray(refinement.modifiedSteps, 8, 240);
+  const allergyNotes = validStringArray(refinement.allergyNotes, 8, 180);
+  const foodSafetyNotes = validStringArray(refinement.foodSafetyNotes, 8, 180);
+  const confidenceNotes = validString(refinement.confidenceNotes, 300);
+  const proposedVariant =
+    refinement.proposedVariant && typeof refinement.proposedVariant === "object"
+      ? validateRecipe(refinement.proposedVariant, {})
+      : null;
+
+  if (
+    !refinementFeasibilities.has(feasibility) ||
+    !explanation ||
+    !modifiedIngredients ||
+    !modifiedSteps ||
+    !allergyNotes ||
+    !foodSafetyNotes ||
+    foodSafetyNotes.length < 1 ||
+    (request.recipe.allergyNotes.length > 0 && allergyNotes.length < 1) ||
+    !confidenceNotes
+  ) {
+    return { ok: false };
+  }
+
+  if (refinement.proposedVariant && !proposedVariant) {
+    return { ok: false };
+  }
+
+  const searchableText = JSON.stringify({
+    feasibility,
+    explanation,
+    modifiedIngredients,
+    modifiedSteps,
+    allergyNotes,
+    foodSafetyNotes,
+    confidenceNotes,
+    proposedVariant,
+  }).toLowerCase();
+  if (unsafeClaims.some((claim) => searchableText.includes(claim))) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    refinement: {
+      feasibility,
+      explanation,
+      modifiedIngredients,
+      modifiedSteps,
+      allergyNotes,
+      foodSafetyNotes,
+      confidenceNotes,
+      proposedVariant,
+    },
+  };
 }
 
 function validateRecipe(recipe, constraints) {
@@ -601,6 +935,19 @@ function createSystemPrompt() {
   ].join(" ");
 }
 
+function createRefinementSystemPrompt() {
+  return [
+    "You are Cookooi, a food recipe refinement service.",
+    "Evaluate one selected recipe plus one bounded user follow-up question.",
+    "Return feasibility, a concise explanation, suggested ingredient changes, suggested step changes, allergy notes, food-safety notes, confidence notes, and an optional proposed variant.",
+    "Do not overwrite the original recipe; proposedVariant is only a suggestion for UI display.",
+    "Preserve allergy and food-safety caution language from the selected recipe.",
+    "Never claim a recipe is allergen-free, medically appropriate, nutritionally guaranteed, definitely safe, or guaranteed safe.",
+    "Reject non-food or unsafe requests through the structured response by using not_recommended and safe notes.",
+    "Return only JSON matching the provided schema. Do not ask follow-up questions.",
+  ].join(" ");
+}
+
 function recipeResponseSchema() {
   const stringArray = {
     type: "array",
@@ -657,6 +1004,87 @@ function recipeResponseSchema() {
   };
 }
 
+function refinementResponseSchema() {
+  const stringArray = {
+    type: "array",
+    items: { type: "string" },
+  };
+  const recipeSchema = recipeObjectSchema(stringArray);
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["refinement"],
+    properties: {
+      refinement: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "feasibility",
+          "explanation",
+          "modifiedIngredients",
+          "modifiedSteps",
+          "allergyNotes",
+          "foodSafetyNotes",
+          "confidenceNotes",
+          "proposedVariant",
+        ],
+        properties: {
+          feasibility: { type: "string", enum: ["works", "use_caution", "not_recommended"] },
+          explanation: { type: "string" },
+          modifiedIngredients: stringArray,
+          modifiedSteps: stringArray,
+          allergyNotes: stringArray,
+          foodSafetyNotes: stringArray,
+          confidenceNotes: { type: "string" },
+          proposedVariant: {
+            anyOf: [recipeSchema, { type: "null" }],
+          },
+        },
+      },
+    },
+  };
+}
+
+function recipeObjectSchema(stringArray) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "title",
+      "summary",
+      "usesFromAvailableItems",
+      "itemsStillNeeded",
+      "steps",
+      "prepTimeMinutes",
+      "cookTimeMinutes",
+      "servings",
+      "difficulty",
+      "dietaryNotes",
+      "allergyNotes",
+      "foodSafetyNotes",
+      "substitutions",
+      "confidenceNotes",
+    ],
+    properties: {
+      title: { type: "string" },
+      summary: { type: "string" },
+      usesFromAvailableItems: stringArray,
+      itemsStillNeeded: stringArray,
+      steps: stringArray,
+      prepTimeMinutes: { type: "integer" },
+      cookTimeMinutes: { type: "integer" },
+      servings: { type: "integer" },
+      difficulty: { type: "string", enum: ["easy", "medium", "ambitious"] },
+      dietaryNotes: stringArray,
+      allergyNotes: stringArray,
+      foodSafetyNotes: stringArray,
+      substitutions: stringArray,
+      confidenceNotes: { type: "string" },
+    },
+  };
+}
+
 function createFallbackResponse(request, model, warning) {
   const avoidTerms = splitAvoidTerms(request.constraints.avoid);
   const ingredients = request.ingredientsText
@@ -676,6 +1104,55 @@ function createFallbackResponse(request, model, warning) {
     model: model || "deterministic-fallback",
     createdAt: new Date().toISOString(),
     warning,
+  };
+}
+
+function createFallbackRefinementResponse(request, model, warning) {
+  return {
+    refinement: fallbackRefinement(request),
+    source: "fallback",
+    provider: "fallback",
+    model: model || "deterministic-fallback",
+    createdAt: new Date().toISOString(),
+    warning,
+  };
+}
+
+function fallbackRefinement(request) {
+  const question = request.question.toLowerCase();
+  const wantsGreens = /\b(greens?|kale|spinach|chard|arugula)\b/i.test(question);
+  const addedItem = wantsGreens ? "leafy greens" : "the requested ingredient";
+  const original = request.recipe;
+  const proposedVariant = {
+    ...original,
+    title: original.title.includes("With") ? original.title : `${original.title} With ${wantsGreens ? "Greens" : "A Small Change"}`.slice(0, 90),
+    summary: `${original.summary} Add ${addedItem} only if it looks fresh and fits the flavor.`.slice(0, 240),
+    usesFromAvailableItems: uniqueStrings([...original.usesFromAvailableItems, addedItem]).slice(0, 12),
+    steps: [
+      ...original.steps.slice(0, Math.max(0, original.steps.length - 1)),
+      `Add ${addedItem} near the end so it softens without overcooking.`,
+      original.steps.at(-1) || "Taste and adjust seasoning before serving.",
+    ].slice(0, 7),
+    foodSafetyNotes: uniqueStrings([
+      ...original.foodSafetyNotes,
+      "Wash added produce well and discard anything spoiled, slimy, or off-smelling.",
+    ]).slice(0, 8),
+    allergyNotes: uniqueStrings([
+      ...original.allergyNotes,
+      "Check labels and cross-contact risk for any added item; Cookooi cannot certify allergy safety.",
+    ]).slice(0, 8),
+    confidenceNotes: "Fallback refinement uses conservative cooking guidance because AI refinement is unavailable.",
+  };
+
+  return {
+    feasibility: "use_caution",
+    explanation: `This change can work if the added ${addedItem} is fresh, compatible with the existing flavors, and added in a small amount first.`,
+    modifiedIngredients: [`Add a small handful of ${addedItem}.`],
+    modifiedSteps: [`Stir in ${addedItem} near the end of cooking, then taste before adding more.`],
+    allergyNotes: proposedVariant.allergyNotes,
+    foodSafetyNotes: proposedVariant.foodSafetyNotes,
+    confidenceNotes: "Fallback refinement gives general guidance and does not replace user review of freshness, allergies, or cooking safety.",
+    proposedVariant,
   };
 }
 
@@ -779,6 +1256,19 @@ function isClearlyOffTopic(request) {
   return hasNonFood && !hasFood;
 }
 
+function isClearlyOffTopicRefinement(request) {
+  const question = request.question.toLowerCase();
+  const hasFood = foodSignals.some((signal) => question.includes(signal));
+  const hasNonFood = nonFoodSignals.some((signal) => new RegExp(`\\b${signal}\\b`, "i").test(question));
+  const asksForNonFoodTask = nonFoodRefinementTaskSignals.some((signal) => new RegExp(`\\b${signal}\\b`, "i").test(question));
+  return asksForNonFoodTask || (hasNonFood && !hasFood);
+}
+
+function isUnsafeRefinementQuestion(question) {
+  const normalized = question.toLowerCase();
+  return unsafeRefinementSignals.some((signal) => normalized.includes(signal));
+}
+
 function splitAvoidTerms(value = "") {
   return value
     .toLowerCase()
@@ -816,6 +1306,10 @@ function matchesAvoidedTerm(value, avoidTerms) {
 
 function comparableTitle(value) {
   return cleanText(value).toLowerCase();
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.map(cleanText).filter(Boolean))];
 }
 
 function validString(value, maxLength) {

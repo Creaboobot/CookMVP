@@ -237,6 +237,89 @@ The server prompt should instruct the model to:
 - Avoid follow-up questions during generation.
 - For non-food requests, skip recipe generation and return only the food-only response.
 
+## Per-Meal Refinement API
+
+Cookooi also exposes a server-side refinement endpoint for one selected meal:
+
+```http
+POST /api/recipes/refine
+Content-Type: application/json
+```
+
+The browser sends the selected recipe and one bounded follow-up question. The endpoint returns advisory output only; it must not mutate or overwrite the original recipe.
+
+```json
+{
+  "recipe": {
+    "title": "Potato Bacon Soup",
+    "summary": "A practical soup using ingredients available.",
+    "usesFromAvailableItems": ["potatoes", "bacon"],
+    "itemsStillNeeded": ["seasoning"],
+    "steps": ["Warm the pot.", "Cook the bacon.", "Simmer the potatoes.", "Season and serve."],
+    "prepTimeMinutes": 10,
+    "cookTimeMinutes": 25,
+    "servings": 2,
+    "difficulty": "easy",
+    "dietaryNotes": [],
+    "allergyNotes": ["Check any allergy or diet restrictions."],
+    "foodSafetyNotes": ["Cook high-risk ingredients thoroughly."],
+    "substitutions": ["Use a similar available vegetable if needed."],
+    "confidenceNotes": "Assumes the potatoes are fresh."
+  },
+  "question": "Can I add greens to this potato soup with bacon?",
+  "generation": {
+    "source": "ai",
+    "provider": "openai",
+    "model": "gpt-5.4-mini"
+  }
+}
+```
+
+Successful responses use this shape:
+
+```json
+{
+  "refinement": {
+    "feasibility": "works",
+    "explanation": "Leafy greens can work if they are fresh and added near the end.",
+    "modifiedIngredients": ["Add a small handful of chopped leafy greens."],
+    "modifiedSteps": ["Stir greens into the hot soup during the last few minutes."],
+    "allergyNotes": ["Check labels and cross-contact risk for any added item; Cookooi cannot certify allergy safety."],
+    "foodSafetyNotes": ["Wash greens well and discard anything wilted, slimy, or off-smelling."],
+    "confidenceNotes": "Works best with sturdy greens such as kale or spinach.",
+    "proposedVariant": {
+      "title": "Potato Bacon Soup With Greens",
+      "summary": "A practical soup using ingredients available with greens added near the end.",
+      "usesFromAvailableItems": ["potatoes", "bacon", "leafy greens"],
+      "itemsStillNeeded": ["seasoning"],
+      "steps": ["Warm the pot.", "Cook the bacon.", "Simmer the potatoes.", "Add greens near the end.", "Season and serve."],
+      "prepTimeMinutes": 10,
+      "cookTimeMinutes": 25,
+      "servings": 2,
+      "difficulty": "easy",
+      "dietaryNotes": [],
+      "allergyNotes": ["Check labels and cross-contact risk for any added item; Cookooi cannot certify allergy safety."],
+      "foodSafetyNotes": ["Wash greens well and discard anything wilted, slimy, or off-smelling."],
+      "substitutions": ["Use a similar sturdy green if needed."],
+      "confidenceNotes": "Assumes the potatoes and greens are fresh."
+    }
+  },
+  "source": "ai",
+  "provider": "openai",
+  "model": "gpt-5.4-mini",
+  "createdAt": "2026-05-21T12:00:00.000Z"
+}
+```
+
+Refinement rules:
+
+- Reject missing, malformed, overlarge, unrelated, or unsafe follow-up requests with user-safe errors.
+- Limit the follow-up question to 500 characters and the selected recipe plus question prompt to 5000 characters.
+- Preserve allergy and food-safety caution language. Never claim guaranteed safety, allergen-free output, medical suitability, or nutrition guarantees.
+- Map provider errors to the same user-safe error family as generation.
+- When fallback mode is enabled, return clearly labeled deterministic refinement guidance.
+- Leave display, follow-up composer UI, and variant saving behavior to Task 24.
+
 ## Terminology Requirements
 
 Use Cookooi as the app name. Avoid storage-location-specific language in user-facing output. Prefer:
@@ -247,9 +330,9 @@ Use Cookooi as the app name. Avoid storage-location-specific language in user-fa
 - `items still needed`
 - `what the user does not have`
 
-## Non-Goals For This Task
+## Original Contract Task Non-Goals
 
-- No server endpoint implementation.
+- The initial contract task did not implement server endpoints; later tasks now implement the generation and refinement APIs described above.
 - No UI changes.
 - No provider configuration changes.
 - No persistence, analytics, or feedback collection changes.
