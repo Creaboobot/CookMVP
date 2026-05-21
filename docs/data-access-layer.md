@@ -99,4 +99,3 @@ Adapters must keep private prompt text, voice transcripts, private notes, follow
 - request context remains anonymous and ignores client-supplied user ids;
 - local-only services preserve saved recipes, settings, feedback, follow-up metadata, and disabled public/community behavior;
 - disabled backend flags do not alter generation, follow-up, or voice transcription route responses.
-
