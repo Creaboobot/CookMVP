@@ -6,6 +6,7 @@
   "scripts": {
     "start": "wrangler dev",
     "start:node": "node server.mjs",
+    "health:local": "node scripts/runtime-health-check.mjs http://127.0.0.1:3004",
     "deploy": "wrangler deploy",
     "test": "node --test"
   },

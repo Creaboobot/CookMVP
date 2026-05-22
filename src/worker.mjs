@@ -1,4 +1,5 @@
 import { handleGenerateRecipeRequest, handleRefineRecipeRequest, handleTranscribeVoiceRequest } from "./recipe-api.mjs";
+import { handleOperationsHealthRequest } from "./operations-health.mjs";
 
 export default {
   async fetch(request, env) {
@@ -14,6 +15,10 @@ export default {
 
     if (url.pathname === "/api/voice/transcribe") {
       return handleTranscribeVoiceRequest(request, env);
+    }
+
+    if (url.pathname === "/api/health") {
+      return handleOperationsHealthRequest(request, env);
     }
 
     return env.ASSETS.fetch(request);

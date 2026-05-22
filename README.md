@@ -60,11 +60,30 @@ Future Cookooi task batches should run implementation under a publish-capable Wi
 
 See `docs/agent-operations.md` for the required health-check command, mirror repair expectations, connector fallback rules, and the no-duplicate-support-task policy for the known runtime identity blocker.
 
+## User testing operations
+
+Task 34 adds an operator-facing health surface for broader testing. See `docs/user-testing-operations.md` for local, preview, and public-route checks; OpenAI configuration expectations; fallback-mode boundaries; privacy-safe logging categories; anonymous rate-limit and cost-control requirements; and support runbooks for OpenAI missing, transcription failure, browser microphone permission, public route down, fallback recipe mode, and deployment failure.
+
+After starting Cookooi, check the current runtime mode:
+
+```powershell
+npm run health:local
+```
+
+The health endpoint is:
+
+```text
+GET /api/health
+```
+
+It reports whether the target is ready for local fallback testing or real OpenAI-backed testing without calling OpenAI and without returning secret values. Public tester invites should use an OpenAI-backed route check, not fallback-only output.
+
 ## Recipe APIs
 
 The server exposes:
 
 ```text
+GET /api/health
 POST /api/recipes/generate
 POST /api/recipes/refine
 POST /api/voice/transcribe
@@ -76,6 +95,8 @@ The endpoint reads provider configuration from the server environment only:
 - `OPENAI_MODEL`: optional, defaults to `gpt-5.4-mini`.
 - `OPENAI_TRANSCRIPTION_MODEL`: optional, defaults to `gpt-4o-mini-transcribe`.
 - `COOKOOI_ENABLE_FALLBACK=true`: optional testing mode for deterministic fallback output when OpenAI is unavailable.
+- `COOKOOI_RATE_LIMIT_MAX_REQUESTS`: optional anonymous request bucket size, defaults to `20`.
+- `COOKOOI_RATE_LIMIT_WINDOW_MS`: optional anonymous request bucket window, defaults to `600000`.
 
 Do not put provider keys in browser files. For local Wrangler testing, keep secrets in `.dev.vars`, which is ignored by Git.
 
@@ -110,6 +131,8 @@ See `docs/account-community-architecture.md` for the future account and communit
 Task 32 defines the auth/session and authorization boundary at `docs/auth-session-authorization.md`. It keeps the current app anonymous by default, requires server-verified identity before future account persistence, ignores client-supplied user ids for ownership, separates private user data rules from public/community rules, and makes moderator/admin/support access explicit rather than implicit.
 
 Task 33 defines the privacy, consent, retention, publication sanitization, analytics, export/delete, and moderation backbone at `docs/privacy-consent-retention.md`, with shared constants in `src/privacy-governance.mjs`. It keeps raw voice audio non-retained by default, requires explicit publication consent, and blocks raw prompts, transcripts, private notes, follow-up questions, personal constraints, and anonymous session ids from future public recipe payloads. Analytics may keep anonymous session ids only as metadata under the metadata-only policy and must not include raw sensitive text.
+
+Task 34 defines the user testing operations backbone at `docs/user-testing-operations.md`, with runtime status from `GET /api/health` and the `scripts/runtime-health-check.mjs` validation helper. It distinguishes local fallback testing from real OpenAI-backed public testing, keeps feedback capture browser-local, and requires privacy-safe operational notes that avoid raw ingredients, prompts, transcripts, avoidances, allergy text, and private notes.
 
 Task 30 adds the first schema-only Supabase migration baseline at `supabase/migrations/20260521235850_initial_data_schema.sql`. See `docs/database-schema-baseline.md` for the tables, ownership fields, Row Level Security baseline, public publication sanitizer contract, indexes, and validation plan. The current app still runs without a production database, Supabase project, or account feature flag.
 
@@ -168,19 +191,20 @@ https://cookooi.creabooboard.win
 Checklist:
 
 1. From a fresh clone, run `npm ci`, then start Cookooi with `npm start`.
-2. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
-3. Open Settings, set at least one baseline preference such as an avoidance, servings, meal type, available time, cuisine or flavor, or available equipment, then save settings.
-4. Enter ingredients the tester has, optionally add a craving, or record a short in-app voice note that uses `POST /api/voice/transcribe` before the transcript review step. If microphone permission is blocked or recording is unavailable, paste a transcript and parse those fields instead.
-5. Confirm exactly three proposals appear.
-6. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
-7. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
-8. Open one proposal, ask a follow-up such as whether greens can be added to potato soup with bacon, and confirm a feasibility answer renders without replacing the original recipe.
-9. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
-10. Rate one proposal, add an optional note, refresh the page, and confirm the session summary still counts the saved recipe, rating, generation record, and follow-up record.
-11. Export session JSON, clear session data, import the exported JSON, and confirm the saved recipe, settings, feedback, and follow-up metadata return.
-12. Reset Settings and confirm saved recipes and session data are not required for Settings to return to defaults.
-13. Test a known error path by running without `OPENAI_API_KEY` and confirm the message says generation is not configured instead of showing fake success.
-14. Check desktop and mobile widths for readable controls, cards, saved recipe details, follow-up panels, Settings, and session data actions.
+2. Run `npm run health:local` and confirm whether the target is local fallback, OpenAI-backed, or configuration-needed.
+3. Confirm the home screen shows the planner, disclosure copy, recipe proposals area, saved recipe library, and session data controls.
+4. Open Settings, set at least one baseline preference such as an avoidance, servings, meal type, available time, cuisine or flavor, or available equipment, then save settings.
+5. Enter ingredients the tester has, optionally add a craving, or record a short in-app voice note that uses `POST /api/voice/transcribe` before the transcript review step. If microphone permission is blocked or recording is unavailable, paste a transcript and parse those fields instead.
+6. Confirm exactly three proposals appear.
+7. Confirm each proposal clearly shows whether it is AI-generated or fallback output, the items used, items still needed, steps, substitutions, dietary notes, allergy notes, food-safety notes, confidence notes, and source metadata.
+8. Click Try three more and confirm a second set of exactly three proposals replaces the first set while the session summary records another generation.
+9. Open one proposal, ask a follow-up such as whether greens can be added to potato soup with bacon, and confirm a feasibility answer renders without replacing the original recipe.
+10. Save one recipe, refresh the page, and confirm the saved recipe remains available with full details.
+11. Rate one proposal, add an optional note, refresh the page, and confirm the session summary still counts the saved recipe, rating, generation record, and follow-up record.
+12. Export session JSON, clear session data, import the exported JSON, and confirm the saved recipe, settings, feedback, and follow-up metadata return.
+13. Reset Settings and confirm saved recipes and session data are not required for Settings to return to defaults.
+14. Test a known error path by running without `OPENAI_API_KEY` and confirm the message says generation is not configured instead of showing fake success.
+15. Check desktop and mobile widths for readable controls, cards, saved recipe details, follow-up panels, Settings, and session data actions.
 
 If `OPENAI_API_KEY` is present in `.dev.vars` or the server environment, also run one OpenAI-backed generation and confirm the successful status says the proposals are AI-generated. If no provider key is configured, keep `COOKOOI_ENABLE_FALLBACK=true` for local workflow testing and record OpenAI-backed generation as not configured for that run.
 
