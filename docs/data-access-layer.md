@@ -97,6 +97,8 @@ const adapters = {
 
 Adapters must keep private prompt text, voice transcripts, private notes, follow-up questions, and personal constraints out of public recipe and community paths. Server-side service-role work should stay behind Worker routes and should not expose service keys or database URLs to browser code.
 
+Task 33 adds `src/privacy-governance.mjs` and `docs/privacy-consent-retention.md` as the shared governance backbone for future adapters. Backend adapters that publish recipes or record analytics should use the policy constants and sanitizer helpers there so public recipe writes and feedback events follow the same blocked-field rules.
+
 ## Validation
 
 `test/data-access-layer.test.mjs` verifies:

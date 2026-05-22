@@ -16,6 +16,8 @@ The core product boundary is simple: private cooking assistance and future publi
 - Every persisted payload that can evolve has a schema version and a migration path.
 - Anonymous test-session data can be migrated into an account only after user consent.
 
+The concrete privacy, consent, retention, analytics, export/delete, and moderation defaults for later implementation tasks live in `docs/privacy-consent-retention.md`.
+
 ## Current Prototype Baseline
 
 Cookooi currently stores first-pass testing data in browser-local records:
@@ -511,11 +513,13 @@ People-also-liked recommendations should use co-like and co-bookmark patterns be
 - Whether public bookmark lists ever become shareable collections.
 - Initial ranking weights for likes, bookmarks, freshness, reports, and curation.
 - Data retention period for anonymous sessions after account migration.
+- Final legal copy for privacy notices and account deletion confirmations; `docs/privacy-consent-retention.md` is the product/engineering baseline, not legal review text.
 
 ## Implementation Guidance For Later Agents
 
 - Do not implement public/community tables before the auth and database strategy in `docs/auth-database-environment-strategy.md` is approved for live account work.
 - Keep account migration private-first; do not turn existing saved recipes into public recipes automatically.
 - Treat publication as a copy-and-sanitize workflow, not a visibility toggle on `saved_recipes`.
+- Use `src/privacy-governance.mjs` for shared consent, retention, public-field, and analytics-field boundaries where code needs the policy.
 - Add tests for every privacy boundary: no raw prompts, transcripts, private notes, follow-up questions, or personal constraints in public APIs.
 - Use Cookooi naming in user-facing copy and storage-location-neutral wording for ingredients and available items.

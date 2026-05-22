@@ -229,3 +229,36 @@ test("documents auth session and authorization boundaries", async () => {
   assert.doesNotMatch(authDoc, /sk-[A-Za-z0-9_-]{20,}/);
   assert.doesNotMatch(authDoc, /\bfridge\b/i);
 });
+
+test("documents privacy consent retention and sanitization boundaries", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const architectureDoc = await readFile(new URL("../docs/account-community-architecture.md", import.meta.url), "utf8");
+  const dataAccessDoc = await readFile(new URL("../docs/data-access-layer.md", import.meta.url), "utf8");
+  const schemaDoc = await readFile(new URL("../docs/database-schema-baseline.md", import.meta.url), "utf8");
+  const privacyDoc = await readFile(new URL("../docs/privacy-consent-retention.md", import.meta.url), "utf8");
+
+  assert.match(readme, /privacy-consent-retention\.md/);
+  assert.match(readme, /privacy-governance\.mjs/);
+  assert.match(readme, /anonymous session ids from future public recipe payloads/);
+  assert.match(readme, /Analytics may keep anonymous session ids only as metadata/);
+  assert.doesNotMatch(readme, /anonymous session ids from future public recipe and analytics payloads/);
+  assert.match(architectureDoc, /privacy-consent-retention\.md/);
+  assert.match(dataAccessDoc, /privacy-governance\.mjs/);
+  assert.match(schemaDoc, /privacy-consent-retention\.md/);
+  assert.match(privacyDoc, /Raw voice audio/);
+  assert.match(privacyDoc, /Not retained by default/);
+  assert.match(privacyDoc, /Publication is never automatic/);
+  assert.match(privacyDoc, /explicit publication consent/i);
+  assert.match(privacyDoc, /voice transcripts/);
+  assert.match(privacyDoc, /raw prompts/);
+  assert.match(privacyDoc, /private notes/);
+  assert.match(privacyDoc, /follow-up questions/);
+  assert.match(privacyDoc, /Analytics And Feedback Rules/);
+  assert.match(privacyDoc, /Anonymous session id is allowed only as analytics metadata/);
+  assert.match(privacyDoc, /must not be copied into public recipe payloads/);
+  assert.match(privacyDoc, /Export And Deletion Expectations/);
+  assert.match(privacyDoc, /Report And Moderation Workflow/);
+  assert.doesNotMatch(privacyDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(privacyDoc, /postgres(?:ql)?:\/\/[^`\s]+:[^`\s]+@/i);
+  assert.doesNotMatch(privacyDoc, /\bfridge\b/i);
+});
