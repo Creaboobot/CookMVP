@@ -292,3 +292,37 @@ test("documents user testing operations health checks and support runbooks", asy
   assert.doesNotMatch(operationsDoc, /postgres(?:ql)?:\/\/[^`\s]+:[^`\s]+@/i);
   assert.doesNotMatch(operationsDoc, /\bfridge\b/i);
 });
+
+test("documents the account and community implementation roadmap", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const roadmapDoc = await readFile(new URL("../docs/account-community-roadmap.md", import.meta.url), "utf8");
+
+  assert.match(readme, /account-community-roadmap\.md/);
+  assert.match(readme, /browser-local-to-account migration/);
+  assert.match(readme, /people-also-liked recommendations/);
+  assert.match(roadmapDoc, /Anonymous Tester Stability/);
+  assert.match(roadmapDoc, /Human Setup And Approval Gate/);
+  assert.match(roadmapDoc, /Account Beta Foundation/);
+  assert.match(roadmapDoc, /Browser-Local To Account Migration/);
+  assert.match(roadmapDoc, /Private Cloud Library/);
+  assert.match(roadmapDoc, /Public Recipe Publishing/);
+  assert.match(roadmapDoc, /Community Signals/);
+  assert.match(roadmapDoc, /Ranking And People-Also-Liked MVP/);
+  assert.match(roadmapDoc, /Account beta readiness acceptance criteria/);
+  assert.match(roadmapDoc, /Public recipe sharing readiness acceptance criteria/);
+  assert.match(roadmapDoc, /Ranking and recommendation MVP readiness acceptance criteria/);
+  assert.match(roadmapDoc, /Settings: default to "review before replace"/);
+  assert.match(roadmapDoc, /deduplicate by stable recipe id/);
+  assert.match(roadmapDoc, /explicit consent/);
+  assert.match(roadmapDoc, /public recipes are searchable by default/);
+  assert.match(roadmapDoc, /likes, bookmarks, reports/);
+  assert.match(roadmapDoc, /people-also-liked recommendations/);
+  assert.match(roadmapDoc, /Future Execution Task Proposals/);
+  assert.match(roadmapDoc, /Provider account creation/);
+  assert.match(roadmapDoc, /COOKOOI_ACCOUNTS_ENABLED=false/);
+  assert.match(roadmapDoc, /docs\/privacy-consent-retention\.md/);
+  assert.match(roadmapDoc, /docs\/user-testing-operations\.md/);
+  assert.doesNotMatch(roadmapDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(roadmapDoc, /postgres(?:ql)?:\/\/[^`\s]+:[^`\s]+@/i);
+  assert.doesNotMatch(roadmapDoc, /\bfridge\b/i);
+});

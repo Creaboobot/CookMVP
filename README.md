@@ -134,6 +134,8 @@ Task 33 defines the privacy, consent, retention, publication sanitization, analy
 
 Task 34 defines the user testing operations backbone at `docs/user-testing-operations.md`, with runtime status from `GET /api/health` and the `scripts/runtime-health-check.mjs` validation helper. It distinguishes local fallback testing from real OpenAI-backed public testing, keeps feedback capture browser-local, and requires privacy-safe operational notes that avoid raw ingredients, prompts, transcripts, avoidances, allergy text, and private notes.
 
+Task 35 defines the phased account and community implementation roadmap at `docs/account-community-roadmap.md`. It covers anonymous tester stability, account beta, browser-local-to-account migration, private cloud saved recipes and settings, explicit public recipe publishing, likes/bookmarks/reports, rankings, people-also-liked recommendations, readiness criteria, conflict behavior, and human decisions needed before implementation.
+
 Task 30 adds the first schema-only Supabase migration baseline at `supabase/migrations/20260521235850_initial_data_schema.sql`. See `docs/database-schema-baseline.md` for the tables, ownership fields, Row Level Security baseline, public publication sanitizer contract, indexes, and validation plan. The current app still runs without a production database, Supabase project, or account feature flag.
 
 Task 31 adds disabled-by-default data access and feature-flag service boundaries. See `docs/data-access-layer.md` for the server request context, service modules, local-only browser adapter, and the flags that keep account storage, public recipes, and community interactions off until a later reviewed task enables them.
