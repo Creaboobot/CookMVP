@@ -239,6 +239,9 @@ test("documents privacy consent retention and sanitization boundaries", async ()
 
   assert.match(readme, /privacy-consent-retention\.md/);
   assert.match(readme, /privacy-governance\.mjs/);
+  assert.match(readme, /anonymous session ids from future public recipe payloads/);
+  assert.match(readme, /Analytics may keep anonymous session ids only as metadata/);
+  assert.doesNotMatch(readme, /anonymous session ids from future public recipe and analytics payloads/);
   assert.match(architectureDoc, /privacy-consent-retention\.md/);
   assert.match(dataAccessDoc, /privacy-governance\.mjs/);
   assert.match(schemaDoc, /privacy-consent-retention\.md/);
@@ -251,6 +254,8 @@ test("documents privacy consent retention and sanitization boundaries", async ()
   assert.match(privacyDoc, /private notes/);
   assert.match(privacyDoc, /follow-up questions/);
   assert.match(privacyDoc, /Analytics And Feedback Rules/);
+  assert.match(privacyDoc, /Anonymous session id is allowed only as analytics metadata/);
+  assert.match(privacyDoc, /must not be copied into public recipe payloads/);
   assert.match(privacyDoc, /Export And Deletion Expectations/);
   assert.match(privacyDoc, /Report And Moderation Workflow/);
   assert.doesNotMatch(privacyDoc, /sk-[A-Za-z0-9_-]{20,}/);

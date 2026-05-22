@@ -121,6 +121,8 @@ Cookooi analytics and feedback should follow the existing metadata-only pattern:
 - allowed: event type, schema version, anonymous session id, recipe id, generation id, source, provider, model, success/failure, recipe count, follow-up count, rating, note length, item counts, text lengths, selected diet/meal type, servings, time, equipment count, and timestamps;
 - not allowed by default: raw ingredients, craving text, avoidances, allergy text, voice transcript, raw prompt, raw follow-up question, private notes, or full feedback note text.
 
+Anonymous session id is allowed only as analytics metadata. It must not be copied into public recipe payloads, exports of public recipe data, ranking payloads, or any analytics event that also contains raw sensitive text.
+
 Optional tester notes currently remain browser-local. Future server-side feedback storage must either keep notes private with explicit consent or continue storing only note length and categorical ratings.
 
 ## Export And Deletion Expectations
