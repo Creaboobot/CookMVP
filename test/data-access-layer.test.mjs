@@ -155,6 +155,14 @@ test("authorization helpers keep private, public, and moderation rules distinct"
     ...authenticatedTestContext("moderator-1"),
     identity: createAuthenticatedIdentity({ userId: "moderator-1", roles: [authRoles.moderator] }),
   };
+  const admin = {
+    ...authenticatedTestContext("admin-1"),
+    identity: createAuthenticatedIdentity({ userId: "admin-1", roles: [authRoles.admin] }),
+  };
+  const support = {
+    ...authenticatedTestContext("support-1"),
+    identity: createAuthenticatedIdentity({ userId: "support-1", roles: [authRoles.support] }),
+  };
 
   assert.deepEqual(authorizePrivateResourceAccess(anonymous, "user-1"), {
     allowed: false,
@@ -172,11 +180,35 @@ test("authorization helpers keep private, public, and moderation rules distinct"
     allowed: true,
     reason: authorizationReasons.allowed,
   });
+  assert.deepEqual(authorizePublicRecipeRead(anonymous, {}), {
+    allowed: false,
+    reason: authorizationReasons.publicRecipeNotPublished,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(anonymous, { status: "archived" }), {
+    allowed: false,
+    reason: authorizationReasons.publicRecipeNotPublished,
+  });
   assert.deepEqual(authorizePublicRecipeRead(otherUser, { status: "draft_publication", ownerUserId: "user-1" }), {
     allowed: false,
     reason: authorizationReasons.publicRecipeNotPublished,
   });
   assert.deepEqual(authorizePublicRecipeRead(owner, { status: "draft_publication", ownerUserId: "user-1" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(owner, { ownerUserId: "user-1" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(moderator, { status: "hidden", ownerUserId: "user-1" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(admin, { status: "removed", ownerUserId: "user-1" }), {
+    allowed: true,
+    reason: authorizationReasons.allowed,
+  });
+  assert.deepEqual(authorizePublicRecipeRead(support, {}), {
     allowed: true,
     reason: authorizationReasons.allowed,
   });

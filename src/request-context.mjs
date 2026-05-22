@@ -87,7 +87,7 @@ export function authorizePrivateResourceWrite(context, ownerUserId = context?.id
 
 export function authorizePublicRecipeRead(context, publicRecipe = {}) {
   const status = cleanText(publicRecipe.status);
-  if (!status || status === "published") {
+  if (status === "published") {
     return allowedAuthorization;
   }
 
