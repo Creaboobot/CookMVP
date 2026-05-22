@@ -66,6 +66,8 @@ Publishing is modeled as a copy-and-sanitize workflow:
 
 General public-facing recipe notes can live in fields such as `allergy_notes_json` and `food_safety_notes_json`, but those fields are recipe content notes, not copies of the user's personal allergy list or private constraints.
 
+Task 33 adds the detailed privacy, consent, retention, publication sanitization, analytics, export/delete, and moderation defaults in `docs/privacy-consent-retention.md`, plus shared code constants in `src/privacy-governance.mjs`. Future schema or adapter changes should use those boundaries before adding live account or community persistence.
+
 ## Constraints And Indexes
 
 Core database protections include:
