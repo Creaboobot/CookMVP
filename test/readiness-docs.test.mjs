@@ -262,3 +262,33 @@ test("documents privacy consent retention and sanitization boundaries", async ()
   assert.doesNotMatch(privacyDoc, /postgres(?:ql)?:\/\/[^`\s]+:[^`\s]+@/i);
   assert.doesNotMatch(privacyDoc, /\bfridge\b/i);
 });
+
+test("documents user testing operations health checks and support runbooks", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const operationsDoc = await readFile(new URL("../docs/user-testing-operations.md", import.meta.url), "utf8");
+
+  assert.match(readme, /User testing operations/);
+  assert.match(readme, /user-testing-operations\.md/);
+  assert.match(readme, /GET \/api\/health/);
+  assert.match(readme, /npm run health:local/);
+  assert.match(readme, /runtime-health-check\.mjs/);
+  assert.match(readme, /real OpenAI-backed testing/);
+  assert.match(operationsDoc, /Cookooi User Testing Operations/);
+  assert.match(operationsDoc, /GET \/api\/health/);
+  assert.match(operationsDoc, /scripts\/runtime-health-check\.mjs/);
+  assert.match(operationsDoc, /local fallback testing/i);
+  assert.match(operationsDoc, /real public testing readiness/i);
+  assert.match(operationsDoc, /COOKOOI_RATE_LIMIT_MAX_REQUESTS=20/);
+  assert.match(operationsDoc, /COOKOOI_RATE_LIMIT_WINDOW_MS=600000/);
+  assert.match(operationsDoc, /provider_unavailable/);
+  assert.match(operationsDoc, /provider_rate_limited/);
+  assert.match(operationsDoc, /browser microphone permission/i);
+  assert.match(operationsDoc, /public route down/i);
+  assert.match(operationsDoc, /fallback recipe mode/i);
+  assert.match(operationsDoc, /deployment failure/i);
+  assert.match(operationsDoc, /No raw ingredients/i);
+  assert.match(operationsDoc, /Cookooi Human Support Task/);
+  assert.doesNotMatch(operationsDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(operationsDoc, /postgres(?:ql)?:\/\/[^`\s]+:[^`\s]+@/i);
+  assert.doesNotMatch(operationsDoc, /\bfridge\b/i);
+});
