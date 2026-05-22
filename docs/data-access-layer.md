@@ -39,6 +39,14 @@ The current request context is anonymous only. It does not trust client-provided
 
 The API handlers for generation, follow-up refinement, and voice transcription now create a request context and call disabled-by-default service hooks. With flags off, these hooks do not call backend adapters and do not alter response behavior.
 
+## Auth Session Boundary
+
+Task 32 extends `src/request-context.mjs` with the auth/session and authorization scaffold documented in `docs/auth-session-authorization.md`.
+
+The current default remains anonymous, but future routes can pass a server-verified `verifiedIdentity` into `createRequestContext` after Supabase or another trusted auth provider validates the session. Browser-supplied user ids and roles are ignored for ownership decisions.
+
+When account/community flags are enabled, private account service writes require authenticated context before backend adapters run. Public recipe listing remains a separate public-read path, while publishing, likes, bookmarks, reports, and moderation require the role checks documented in the auth contract.
+
 ## Browser Local-Only Adapter
 
 `public/local-data-services.js` wraps the current browser-local stores:

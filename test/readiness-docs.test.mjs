@@ -205,3 +205,27 @@ test("documents disabled data access layer and feature flag boundaries", async (
   assert.doesNotMatch(dataAccessDoc, /sk-[A-Za-z0-9_-]{20,}/);
   assert.doesNotMatch(dataAccessDoc, /\bfridge\b/i);
 });
+
+test("documents auth session and authorization boundaries", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const dataAccessDoc = await readFile(new URL("../docs/data-access-layer.md", import.meta.url), "utf8");
+  const authDoc = await readFile(new URL("../docs/auth-session-authorization.md", import.meta.url), "utf8");
+
+  assert.match(readme, /auth-session-authorization\.md/);
+  assert.match(dataAccessDoc, /Auth Session Boundary/);
+  assert.match(authDoc, /server-verified identity/);
+  assert.match(authDoc, /anonymous/);
+  assert.match(authDoc, /authenticated/);
+  assert.match(authDoc, /x-cookooi-user-id/);
+  assert.match(authDoc, /authorizePrivateResourceAccess/);
+  assert.match(authDoc, /authorizePublicRecipeRead/);
+  assert.match(authDoc, /authorizeModerationAction/);
+  assert.match(authDoc, /moderator/);
+  assert.match(authDoc, /admin/);
+  assert.match(authDoc, /support/);
+  assert.match(authDoc, /Raw prompts|raw prompts/);
+  assert.match(authDoc, /voice transcripts/);
+  assert.match(authDoc, /COOKOOI_ACCOUNTS_ENABLED=false/);
+  assert.doesNotMatch(authDoc, /sk-[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(authDoc, /\bfridge\b/i);
+});
