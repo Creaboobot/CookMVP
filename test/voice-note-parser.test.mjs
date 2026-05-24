@@ -99,6 +99,33 @@ test("keeps sentence-separated equipment cues out of parsed avoidances", () => {
   assert.deepEqual(parsed.constraints.equipment, ["stovetop"]);
 });
 
+test("keeps comma-separated equipment and timing cues out of available items", () => {
+  const parsed = parseVoiceNoteTranscript("eggs, spinach, feta, stovetop only, for two under 30 minutes");
+
+  assert.equal(parsed.ingredientsText, "eggs, spinach, feta");
+  assert.equal(parsed.craving, "");
+  assert.deepEqual(parsed.constraints, {
+    servings: 2,
+    maxTotalTimeMinutes: 30,
+    equipment: ["stovetop"],
+  });
+});
+
+test("keeps no-punctuation constraints out of ingredients and avoidances", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "I have eggs, spinach, feta and want something quick no peanuts stovetop only for two under 30 minutes",
+  );
+
+  assert.equal(parsed.ingredientsText, "eggs, spinach, feta");
+  assert.equal(parsed.craving, "something quick");
+  assert.deepEqual(parsed.constraints, {
+    avoid: "peanuts",
+    servings: 2,
+    maxTotalTimeMinutes: 30,
+    equipment: ["stovetop"],
+  });
+});
+
 test("does not send equipment transcript tail text as a request avoidance", () => {
   const parsed = parseVoiceNoteTranscript("I have rice and tofu, no shellfish, use microwave only.");
   const payload = buildRecipeRequestPayload({

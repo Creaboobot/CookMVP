@@ -250,9 +250,11 @@ function looksLikeIngredientList(segment) {
 function ingredientStopCues() {
   return [
     /\b(?:and\s+)?(?:i|we)\s+(?:want|would like|am craving|are craving|need)\b/i,
+    /\band\s+(?:want|would like|am craving|are craving|need|feel like)\b/i,
     /\b(?:make|cook)\s+(?:me|us)?\b/i,
     /\b(?:avoid|without|allergic to|can't have|cannot have)\b/i,
     /\bno\s+\w+/i,
+    /\b(?:(?:use|using|with)\s+(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?|(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)\s+only)\b/i,
     /\b(?:for|serves?|serving(?:s)?(?: for)?)\s+(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i,
     /\b(?:under|within|in|less than|max(?:imum)?(?: of)?)\s+\d{1,3}\s*(?:minutes?|mins?)\b/i,
     /\b(?:vegetarian|vegan|gluten[- ]free|dairy[- ]free|halal|kosher)\b/i,
@@ -275,6 +277,7 @@ function avoidStopCues() {
   return [
     /\b(?:for|serves?|serving(?:s)?(?: for)?)\s+(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i,
     /\b(?:under|within|in|less than|max(?:imum)?(?: of)?)\s+\d{1,3}\s*(?:minutes?|mins?)\b/i,
+    /\b(?:(?:use|using|with)\s+(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?|(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)\s+only)\b/i,
     /\b(?:use|using|with)\s+(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?\b/i,
     /[.;,]\s*(?:the\s+)?(?:oven|stove|stovetop|microwave|blender|air[- ]fryer)(?:\s+only)?\b/i,
     /\b(?:vegetarian|vegan|gluten[- ]free|dairy[- ]free|halal|kosher|(?:for\s+)?breakfast|(?:for\s+)?lunch|(?:for\s+)?dinner|(?:for\s+)?snack)\b/i,

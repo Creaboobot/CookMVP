@@ -43,6 +43,10 @@ test("uses one combined input for typed and spoken requests without storing raw 
   const feedbackStore = await readFile(new URL("../public/feedback-store.js", import.meta.url), "utf8");
 
   assert.match(html, /Ingredients and craving/);
+  assert.match(html, /Add ingredients, with an optional craving, to generate three starter recipes/);
+  assert.match(script, /Add ingredients, with an optional craving, to generate three starter recipes/);
+  assert.doesNotMatch(html, /Add ingredients and a craving to generate three starter recipes/);
+  assert.doesNotMatch(script, /Add ingredients and a craving to generate three starter recipes/);
   assert.doesNotMatch(html, /id="craving-input"/);
   assert.doesNotMatch(html, /id="voice-note-input"/);
   assert.doesNotMatch(html, /id="voice-review-panel"/);

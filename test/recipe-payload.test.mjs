@@ -146,3 +146,40 @@ test("builds a structured request from the combined Ingredients and craving fiel
     },
   });
 });
+
+test("builds combined comma input without leaking equipment into available items", () => {
+  const payload = buildRecipeRequestPayloadFromNaturalText(
+    "eggs, spinach, feta, stovetop only, for two under 30 minutes",
+  );
+
+  assert.deepEqual(payload, {
+    ingredientsText: "eggs, spinach, feta",
+    craving: "",
+    constraints: {
+      diet: "none",
+      mealType: "flexible",
+      servings: 2,
+      maxTotalTimeMinutes: 30,
+      equipment: ["stovetop"],
+    },
+  });
+});
+
+test("builds no-punctuation combined input without leaking constraints", () => {
+  const payload = buildRecipeRequestPayloadFromNaturalText(
+    "I have eggs, spinach, feta and want something quick no peanuts stovetop only for two under 30 minutes",
+  );
+
+  assert.deepEqual(payload, {
+    ingredientsText: "eggs, spinach, feta",
+    craving: "something quick",
+    constraints: {
+      avoid: "peanuts",
+      diet: "none",
+      mealType: "flexible",
+      servings: 2,
+      maxTotalTimeMinutes: 30,
+      equipment: ["stovetop"],
+    },
+  });
+});

@@ -633,7 +633,7 @@ function renderProposals(proposals) {
     els.proposalGrid.innerHTML = `
       <article class="empty-state">
         <h3>Ready when you are.</h3>
-        <p>Add ingredients and a craving to generate three starter recipes.</p>
+        <p>Add ingredients, with an optional craving, to generate three starter recipes.</p>
       </article>
     `;
     setTryMoreVisible(false);
