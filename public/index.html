@@ -60,25 +60,69 @@
             </p>
           </section>
 
-          <section class="settings-panel" aria-labelledby="settings-title">
+          <aside class="disclosure-panel" aria-labelledby="disclosure-title">
+            <div>
+              <p class="eyebrow">Testing notice</p>
+              <h3 id="disclosure-title">AI-generated recipe proposals</h3>
+            </div>
+            <p>
+              Cookooi processes the request you type or say and saved baseline settings to generate
+              recipe proposals. Do not enter sensitive personal information. Review ingredients,
+              allergies, freshness, and cooking safety before making a meal.
+            </p>
+            <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
+            <p>
+              Ratings, optional notes, and minimal generation metadata stay in this browser for
+              testing export. Cookooi does not store raw ingredients, cravings, follow-up questions,
+              or free-text preferences in session analytics.
+            </p>
+          </aside>
+
+          <div class="form-actions">
+            <button class="primary-button" id="generate-button" type="submit">Get ideas</button>
+            <button class="secondary-button" id="retry-button" type="button" hidden>Retry</button>
+          </div>
+          <p class="generation-status" id="generation-status" aria-live="polite"></p>
+
+          <section class="settings-panel" aria-labelledby="settings-line-title">
             <div class="settings-summary-row">
               <div>
-                <p class="eyebrow">Baseline settings</p>
-                <h3 id="settings-title">Saved preferences</h3>
+                <h3 id="settings-line-title">Settings</h3>
                 <p class="settings-summary" id="settings-summary" aria-live="polite"></p>
+                <p class="settings-status" id="settings-status" aria-live="polite"></p>
               </div>
               <button
-                class="secondary-button"
+                class="text-button settings-open-button"
                 id="settings-toggle-button"
                 type="button"
                 aria-expanded="false"
-                aria-controls="settings-fields"
+                aria-haspopup="dialog"
+                aria-controls="settings-dialog"
               >
-                Settings
+                Edit settings
               </button>
             </div>
+          </section>
+        </form>
 
-            <fieldset class="constraint-panel settings-fields" id="settings-fields" hidden>
+        <dialog
+          class="settings-dialog"
+          id="settings-dialog"
+          aria-labelledby="settings-title"
+          aria-describedby="settings-description"
+        >
+            <div class="settings-dialog-heading">
+              <div>
+                <p class="eyebrow">Baseline settings</p>
+                <h3 id="settings-title">Saved preferences</h3>
+                <p id="settings-description">
+                  Browser-local defaults apply to each request until you change or reset them.
+                </p>
+              </div>
+              <button class="text-button" id="settings-close-button" type="button">Close</button>
+            </div>
+
+            <fieldset class="constraint-panel settings-fields" id="settings-fields">
               <legend>Recipe defaults</legend>
 
               <label class="field">
@@ -162,34 +206,8 @@
                 <button class="secondary-button" id="save-settings-button" type="button">Save settings</button>
                 <button class="text-button danger" id="reset-settings-button" type="button">Reset settings</button>
               </div>
-              <p class="settings-status" id="settings-status" aria-live="polite"></p>
             </fieldset>
-          </section>
-
-          <aside class="disclosure-panel" aria-labelledby="disclosure-title">
-            <div>
-              <p class="eyebrow">Testing notice</p>
-              <h3 id="disclosure-title">AI-generated recipe proposals</h3>
-            </div>
-            <p>
-              Cookooi processes the request you type or say and saved baseline settings to generate
-              recipe proposals. Do not enter sensitive personal information. Review ingredients,
-              allergies, freshness, and cooking safety before making a meal.
-            </p>
-            <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
-            <p>
-              Ratings, optional notes, and minimal generation metadata stay in this browser for
-              testing export. Cookooi does not store raw ingredients, cravings, follow-up questions,
-              or free-text preferences in session analytics.
-            </p>
-          </aside>
-
-          <div class="form-actions">
-            <button class="primary-button" id="generate-button" type="submit">Get ideas</button>
-            <button class="secondary-button" id="retry-button" type="button" hidden>Retry</button>
-          </div>
-          <p class="generation-status" id="generation-status" aria-live="polite"></p>
-        </form>
+        </dialog>
       </section>
 
       <section class="results-section" aria-labelledby="results-title">

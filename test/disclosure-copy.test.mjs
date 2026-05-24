@@ -14,16 +14,28 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   assert.match(html, /Session data export/);
 });
 
-test("moves preference controls into saved settings", async () => {
+test("moves preference controls into a settings modal", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
+  const generateIndex = html.indexOf('id="generate-button"');
+  const settingsLineIndex = html.indexOf('id="settings-line-title"');
+  const settingsDialogIndex = html.indexOf('id="settings-dialog"');
 
+  assert.ok(generateIndex > -1);
+  assert.ok(settingsLineIndex > generateIndex);
+  assert.ok(settingsDialogIndex > settingsLineIndex);
   assert.match(html, /id="settings-toggle-button"/);
-  assert.match(html, /id="settings-fields" hidden/);
+  assert.match(html, /aria-haspopup="dialog"/);
+  assert.match(html, /id="settings-dialog"/);
+  assert.match(html, /id="settings-fields"/);
   assert.match(html, /id="meal-type-input"/);
+  assert.match(html, /Close/);
   assert.match(html, /Save settings/);
+  assert.match(script, /showModal/);
+  assert.match(script, /settingsDialog\.close/);
   assert.match(script, /readRecipeSettings/);
   assert.match(script, /saveRecipeSettings/);
+  assert.match(script, /resetRecipeSettings/);
 });
 
 test("includes a bounded three-more recipe action after results", async () => {
