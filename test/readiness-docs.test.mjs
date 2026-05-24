@@ -286,6 +286,11 @@ test("documents user testing operations health checks and support runbooks", asy
   assert.match(operationsDoc, /public route down/i);
   assert.match(operationsDoc, /fallback recipe mode/i);
   assert.match(operationsDoc, /deployment failure/i);
+  assert.match(operationsDoc, /Simplified Get-Ideas Flow Smoke/);
+  assert.match(operationsDoc, /Ingredients and craving/);
+  assert.match(operationsDoc, /Talk and get ideas/);
+  assert.match(operationsDoc, /Try three more/);
+  assert.match(operationsDoc, /390px mobile width/);
   assert.match(operationsDoc, /No raw ingredients/i);
   assert.match(operationsDoc, /Cookooi Human Support Task/);
   assert.doesNotMatch(operationsDoc, /sk-[A-Za-z0-9_-]{20,}/);
