@@ -104,7 +104,11 @@ function extractIngredients(text) {
   );
   const segment = cleanText(match?.[1] || match?.[2] || match?.[3] || "");
 
-  return normalizeListPhrase(stopAtCue(segment, ingredientStopCues()));
+  if (segment) {
+    return normalizeListPhrase(firstSentence(stopAtCue(segment, ingredientStopCues())));
+  }
+
+  return normalizeListPhrase(firstSentence(stopAtCue(fallbackIngredientSegment(text), ingredientStopCues())));
 }
 
 function extractCraving(text) {
@@ -113,7 +117,11 @@ function extractCraving(text) {
   );
   const segment = cleanText(match?.[1] || "");
 
-  return stopAtCue(segment, cravingStopCues());
+  if (segment) {
+    return stopAtCue(segment, cravingStopCues());
+  }
+
+  return stopAtCue(fallbackCravingSegment(text), cravingStopCues());
 }
 
 function extractAvoidances(text) {
@@ -190,6 +198,53 @@ function extractEquipment(text) {
   }
 
   return [...new Set(found)];
+}
+
+function fallbackIngredientSegment(text) {
+  const [first = ""] = sentenceSegments(text);
+
+  if (!first || looksLikeConstraintOnly(first) || looksLikeCravingOnly(first)) {
+    return "";
+  }
+
+  return first;
+}
+
+function fallbackCravingSegment(text) {
+  return (
+    sentenceSegments(text)
+      .slice(1)
+      .find((segment) => !looksLikeConstraintOnly(segment) && !looksLikeIngredientList(segment)) || ""
+  );
+}
+
+function sentenceSegments(text) {
+  return cleanText(text)
+    .split(/[.!?]+/)
+    .map(cleanText)
+    .filter(Boolean);
+}
+
+function firstSentence(text) {
+  return sentenceSegments(text)[0] || cleanText(text);
+}
+
+function looksLikeConstraintOnly(segment) {
+  return Boolean(
+    segment.match(
+      /^(?:no|avoid|without|allergic to|can't have|cannot have|under|within|less than|max(?:imum)?|for|serves?|serving|stovetop|stove|oven|microwave|blender|air[- ]fryer|vegetarian|vegan|gluten[- ]free|dairy[- ]free|halal|kosher)\b/i,
+    ),
+  );
+}
+
+function looksLikeCravingOnly(segment) {
+  return Boolean(
+    segment.match(/^(?:something|make|cook|want|would like|craving|feel like|quick|cozy|spicy|savory|sweet)\b/i),
+  );
+}
+
+function looksLikeIngredientList(segment) {
+  return segment.includes(",");
 }
 
 function ingredientStopCues() {

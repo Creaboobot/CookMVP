@@ -12,9 +12,8 @@
         <p class="eyebrow">Cookooi testing prototype</p>
         <h1 id="app-title">Turn what you have into dinner ideas.</h1>
         <p>
-          Tell the app what ingredients you have, and add a craving only if you have one. It will
-          suggest three distinct meals, show what each one uses, and call out any groceries you
-          still need.
+          Tell Cookooi what ingredients are available and what sounds good. It will suggest three
+          distinct meals, show what each one uses, and call out any items still needed.
         </p>
       </section>
 
@@ -29,132 +28,36 @@
 
         <form id="recipe-form" class="recipe-form">
           <label class="field">
-            <span>Ingredients you have</span>
+            <span>Ingredients and craving</span>
             <textarea
               id="ingredients-input"
               name="ingredients"
-              rows="5"
-              maxlength="1000"
-              placeholder="Example: eggs, spinach, rice, cheddar, chicken, tomatoes"
+              rows="7"
+              maxlength="1400"
+              placeholder="Example: eggs, spinach, feta, leftover rice, lemon. Something quick and savory. No peanuts, stovetop only, for two."
               required
             ></textarea>
-          </label>
-
-          <label class="field">
-            <span>What are you craving? <span class="optional-note">Optional</span></span>
-            <input
-              id="craving-input"
-              name="craving"
-              type="text"
-              maxlength="200"
-              placeholder="Optional: cozy pasta, something spicy, quick breakfast"
-            />
           </label>
 
           <section class="voice-note-panel" aria-labelledby="voice-note-title">
             <div class="voice-note-heading">
               <div>
                 <p class="eyebrow">Voice note</p>
-                <h3 id="voice-note-title">Say it in one note</h3>
+                <h3 id="voice-note-title">Talk into the same request</h3>
                 <p>
-                  Record or paste available items, an optional craving, and any constraints. Review
-                  the transcript and parsed fields before generating.
+                  Record a short request and Cookooi will put the transcript in the field above
+                  before getting ideas.
                 </p>
               </div>
             </div>
 
-            <label class="field">
-              <span>Voice note transcript</span>
-              <textarea
-                id="voice-note-input"
-                rows="4"
-                maxlength="1400"
-                placeholder="Example: I have potatoes, bacon, kale, and cheddar. Make dinner for three in 30 minutes, no peanuts, stovetop only."
-              ></textarea>
-            </label>
-
             <div class="voice-actions">
-              <button class="secondary-button" id="dictate-button" type="button">Record voice note</button>
-              <button class="secondary-button" id="parse-voice-button" type="button">Parse note</button>
-              <button class="text-button" id="clear-voice-button" type="button">Clear note</button>
+              <button class="secondary-button" id="dictate-button" type="button">Talk and get ideas</button>
             </div>
             <p class="voice-privacy">
               Recording requires microphone permission. Audio is sent only for transcription; the raw
-              transcript is used only on this page and is not saved in session analytics.
+              transcript is used only in this request field and is not saved in session analytics.
             </p>
-
-            <fieldset class="voice-review-panel" id="voice-review-panel" hidden>
-              <legend>Parsed request</legend>
-              <label class="field">
-                <span>Parsed available items</span>
-                <textarea id="voice-ingredients-input" rows="3" maxlength="1000"></textarea>
-              </label>
-              <label class="field">
-                <span>Parsed craving <span class="optional-note">Optional</span></span>
-                <input id="voice-craving-input" type="text" maxlength="200" />
-              </label>
-              <div class="constraint-grid">
-                <label class="field">
-                  <span>Parsed avoidances</span>
-                  <input id="voice-avoid-input" type="text" maxlength="500" />
-                </label>
-                <label class="field">
-                  <span>Parsed diet</span>
-                  <select id="voice-diet-input">
-                    <option value="">Use Settings default</option>
-                    <option value="none">No dietary preference</option>
-                    <option value="vegetarian">Vegetarian</option>
-                    <option value="vegan">Vegan</option>
-                    <option value="gluten-free">Gluten-free</option>
-                    <option value="dairy-free">Dairy-free</option>
-                    <option value="halal">Halal</option>
-                    <option value="kosher">Kosher</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Parsed meal type</span>
-                  <select id="voice-meal-type-input">
-                    <option value="">Use Settings default</option>
-                    <option value="flexible">Flexible</option>
-                    <option value="breakfast">Breakfast</option>
-                    <option value="lunch">Lunch</option>
-                    <option value="dinner">Dinner</option>
-                    <option value="snack">Snack</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Parsed servings</span>
-                  <input id="voice-servings-input" type="number" min="1" max="12" />
-                </label>
-                <label class="field">
-                  <span>Parsed available time</span>
-                  <select id="voice-time-input">
-                    <option value="">Use Settings default</option>
-                    <option value="15">15 minutes</option>
-                    <option value="30">30 minutes</option>
-                    <option value="45">45 minutes</option>
-                    <option value="60">1 hour</option>
-                    <option value="90">1.5 hours</option>
-                    <option value="120">2 hours</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Parsed cuisine or flavor</span>
-                  <input id="voice-cuisine-input" type="text" maxlength="120" />
-                </label>
-              </div>
-              <div class="equipment-group" aria-labelledby="voice-equipment-title">
-                <span id="voice-equipment-title">Parsed equipment</span>
-                <div class="checkbox-grid">
-                  <label><input type="checkbox" name="voiceEquipment" value="oven" /> Oven</label>
-                  <label><input type="checkbox" name="voiceEquipment" value="stovetop" /> Stovetop</label>
-                  <label><input type="checkbox" name="voiceEquipment" value="microwave" /> Microwave</label>
-                  <label><input type="checkbox" name="voiceEquipment" value="blender" /> Blender</label>
-                  <label><input type="checkbox" name="voiceEquipment" value="air-fryer" /> Air fryer</label>
-                </div>
-              </div>
-              <p class="voice-review-status" id="voice-review-status" aria-live="polite"></p>
-            </fieldset>
           </section>
 
           <section class="settings-panel" aria-labelledby="settings-title">
@@ -269,9 +172,9 @@
               <h3 id="disclosure-title">AI-generated recipe proposals</h3>
             </div>
             <p>
-              Cookooi processes the ingredients you have, any craving you add, and saved baseline settings
-              to generate recipe proposals. Do not enter sensitive personal information. Review
-              ingredients, allergies, freshness, and cooking safety before making a meal.
+              Cookooi processes the request you type or say and saved baseline settings to generate
+              recipe proposals. Do not enter sensitive personal information. Review ingredients,
+              allergies, freshness, and cooking safety before making a meal.
             </p>
             <p>Saved recipes and test-session data stay in this browser unless you clear them.</p>
             <p>
@@ -282,7 +185,7 @@
           </aside>
 
           <div class="form-actions">
-            <button class="primary-button" id="generate-button" type="submit">Get three meal ideas</button>
+            <button class="primary-button" id="generate-button" type="submit">Get ideas</button>
             <button class="secondary-button" id="retry-button" type="button" hidden>Retry</button>
           </div>
           <p class="generation-status" id="generation-status" aria-live="polite"></p>
@@ -300,7 +203,7 @@
         <div class="proposal-grid" id="proposal-grid" aria-live="polite">
           <article class="empty-state">
             <h3>Ready when you are.</h3>
-            <p>Add ingredients to generate three starter recipes.</p>
+            <p>Add ingredients and a craving to generate three starter recipes.</p>
           </article>
         </div>
         <div class="result-followup">

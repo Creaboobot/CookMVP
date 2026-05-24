@@ -6,7 +6,7 @@ test("shows concise privacy, AI, and safety disclosure before generation", async
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 
   assert.match(html, /AI-generated recipe proposals/);
-  assert.match(html, /processes the ingredients you have, any craving you add, and saved baseline settings/);
+  assert.match(html, /processes the request you type or say and saved baseline settings/);
   assert.match(html, /Do not enter sensitive personal information/);
   assert.match(html, /allergies, freshness, and cooking safety/);
   assert.match(html, /Saved recipes and test-session data stay in this browser/);
@@ -37,19 +37,20 @@ test("includes a bounded three-more recipe action after results", async () => {
   assert.match(script, /maxPreviousRecipeTitles = 12/);
 });
 
-test("includes a reviewable voice note transcript fallback without storing raw transcript analytics", async () => {
+test("uses one combined input for typed and spoken requests without storing raw transcript analytics", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
   const feedbackStore = await readFile(new URL("../public/feedback-store.js", import.meta.url), "utf8");
 
-  assert.match(html, /id="voice-note-input"/);
-  assert.match(html, /id="voice-review-panel" hidden/);
-  assert.match(html, /Parsed available items/);
-  assert.match(html, /Record voice note/);
+  assert.match(html, /Ingredients and craving/);
+  assert.doesNotMatch(html, /id="craving-input"/);
+  assert.doesNotMatch(html, /id="voice-note-input"/);
+  assert.doesNotMatch(html, /id="voice-review-panel"/);
+  assert.match(html, /Talk and get ideas/);
   assert.match(html, /Audio is sent only for transcription/);
-  assert.match(html, /raw\s+transcript is used only on this page/);
-  assert.match(script, /parseVoiceNoteTranscript/);
-  assert.match(script, /voiceConstraintOverrides/);
+  assert.match(html, /raw\s+transcript is used only in this request field/);
+  assert.match(script, /buildRecipeRequestPayloadFromNaturalText/);
+  assert.doesNotMatch(script, /voiceConstraintOverrides/);
   assert.doesNotMatch(feedbackStore, /transcript/i);
 });
 
@@ -60,10 +61,10 @@ test("uses in-app audio recording with clear text fallback states", async () => 
   assert.match(script, /new MediaRecorder/);
   assert.match(script, /selectVoiceRecordingMimeType/);
   assert.match(script, /transcribeVoiceBlob/);
-  assert.match(script, /Record voice note/);
+  assert.match(script, /Talk and get ideas/);
   assert.match(script, /Stop recording/);
   assert.match(script, /Microphone permission was blocked/);
-  assert.match(script, /Paste a transcript below/);
+  assert.match(script, /type the request above/);
   assert.doesNotMatch(script, /Ready to record\. Tap Record, then Stop\./);
   assert.doesNotMatch(script, /keyboard microphone/i);
 });

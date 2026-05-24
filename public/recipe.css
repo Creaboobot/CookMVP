@@ -280,8 +280,7 @@ h1 {
 
 .voice-note-heading h3,
 .voice-note-heading p,
-.voice-privacy,
-.voice-review-status {
+.voice-privacy {
   margin-bottom: 0;
 }
 
@@ -295,38 +294,6 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.voice-review-panel {
-  background: #fff;
-  border: 1px solid #bfdbfe;
-  border-radius: 14px;
-  display: grid;
-  gap: 14px;
-  margin: 0;
-  padding: 16px;
-}
-
-.voice-review-panel[hidden] {
-  display: none;
-}
-
-.voice-review-panel legend {
-  font-weight: 800;
-}
-
-.voice-review-status {
-  color: var(--muted);
-  font-weight: 700;
-  min-height: 22px;
-}
-
-.voice-review-status[data-tone="success"] {
-  color: var(--primary-dark);
-}
-
-.voice-review-status[data-tone="error"] {
-  color: var(--danger);
 }
 
 .settings-summary-row {

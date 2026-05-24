@@ -374,7 +374,7 @@ test("returns 503 when transcription OpenAI configuration is missing", async () 
 
   assert.equal(response.status, 503);
   assert.equal(body.error, "provider_unavailable");
-  assert.match(body.message, /text transcript/i);
+  assert.match(body.message, /Ingredients and craving/i);
 });
 
 test("sends audio to the transcription provider and returns transcript", async () => {

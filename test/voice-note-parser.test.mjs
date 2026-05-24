@@ -34,6 +34,35 @@ test("keeps craving optional when voice note only includes items and context", (
   });
 });
 
+test("parses plain combined input into available items and craving", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "eggs, spinach, feta, leftover rice, lemon. Something quick and savory.",
+  );
+
+  assert.deepEqual(parsed, {
+    ingredientsText: "eggs, spinach, feta, leftover rice, lemon",
+    craving: "Something quick and savory",
+    constraints: {},
+  });
+});
+
+test("parses constraints from one combined typed request", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "eggs, spinach, feta, leftover rice, lemon. Something quick and savory. No peanuts, stovetop only, for two under 30 minutes.",
+  );
+
+  assert.deepEqual(parsed, {
+    ingredientsText: "eggs, spinach, feta, leftover rice, lemon",
+    craving: "Something quick and savory",
+    constraints: {
+      avoid: "peanuts",
+      servings: 2,
+      maxTotalTimeMinutes: 30,
+      equipment: ["stovetop"],
+    },
+  });
+});
+
 test("stops avoidances before equipment-only cues", () => {
   const parsed = parseVoiceNoteTranscript(
     "I have potatoes, bacon, kale, and cheddar. Make dinner for three in 30 minutes, no peanuts, stovetop only.",

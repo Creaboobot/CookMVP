@@ -129,7 +129,7 @@ Actions:
 1. Check `/api/health` for `checks.voice_transcription.status`.
 2. Verify the upload is under 4 MB and uses a supported audio type.
 3. Retry once with a short known-good audio file.
-4. If microphone automation is not possible, use the editable transcript fallback and record that physical iPhone Safari permission still needs a human spot-check when required.
+4. If microphone automation is not possible, use the combined request field and record that physical iPhone Safari permission still needs a human spot-check when required.
 5. Do not attach raw audio to support tasks unless a later explicit opt-in task approves diagnostic audio retention.
 
 ### Browser Microphone Permission
@@ -143,7 +143,7 @@ Symptoms:
 Actions:
 
 1. Confirm the route is HTTPS for browser recording.
-2. Use the manual transcript field when permission is blocked.
+2. Use the combined `Ingredients and craving` field when permission is blocked.
 3. Record browser, viewport, route, and permission state.
 4. For iPhone-only behavior, require physical device evidence or a manual tester note.
 

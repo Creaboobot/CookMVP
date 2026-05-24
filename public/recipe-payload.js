@@ -1,4 +1,5 @@
 import { normalizeRecipeSettings } from "./settings-store.js";
+import { parseVoiceNoteTranscript } from "./voice-note-parser.js";
 
 const supportedDietValues = new Set(["none", "vegetarian", "vegan", "gluten-free", "dairy-free", "halal", "kosher"]);
 const supportedEquipmentValues = new Set(["oven", "stovetop", "microwave", "blender", "air-fryer"]);
@@ -15,6 +16,20 @@ export function buildRecipeRequestPayload(values, baselineSettings = {}) {
     craving: cleanText(values.craving),
     constraints: buildConstraintsPayload(constraintValues),
   };
+}
+
+export function buildRecipeRequestPayloadFromNaturalText(value, baselineSettings = {}) {
+  const parsed = parseVoiceNoteTranscript(value);
+  const constraints = parsed.constraints || {};
+
+  return buildRecipeRequestPayload(
+    {
+      ingredientsText: parsed.ingredientsText,
+      craving: parsed.craving,
+      ...parsedConstraintOverrides(constraints),
+    },
+    baselineSettings,
+  );
 }
 
 export function buildConstraintsPayload(values) {
@@ -61,4 +76,24 @@ export function buildConstraintsPayload(values) {
 
 function cleanText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function parsedConstraintOverrides(constraints) {
+  const overrides = {};
+
+  for (const field of ["avoid", "diet", "mealType", "cuisineOrFlavor"]) {
+    if (cleanText(constraints[field])) {
+      overrides[field] = constraints[field];
+    }
+  }
+  for (const field of ["servings", "maxTotalTimeMinutes"]) {
+    if (Number.isFinite(constraints[field])) {
+      overrides[field] = constraints[field];
+    }
+  }
+  if (Array.isArray(constraints.equipment) && constraints.equipment.length) {
+    overrides.equipment = constraints.equipment;
+  }
+
+  return overrides;
 }

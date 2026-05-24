@@ -1,4 +1,4 @@
-import { buildRecipeRequestPayload } from "./recipe-payload.js";
+import { buildRecipeRequestPayloadFromNaturalText } from "./recipe-payload.js";
 import {
   getRecipeFeedback,
   getSessionId,
@@ -30,7 +30,6 @@ import {
   sessionSummary,
 } from "./session-store.js";
 import { readRecipeSettings, resetRecipeSettings, saveRecipeSettings } from "./settings-store.js";
-import { parseVoiceNoteTranscript } from "./voice-note-parser.js";
 import {
   microphonePermissionWasBlocked,
   selectVoiceRecordingMimeType,
@@ -45,7 +44,6 @@ const maxPreviousRecipeTitles = 12;
 const els = {
   form: document.querySelector("#recipe-form"),
   ingredients: document.querySelector("#ingredients-input"),
-  craving: document.querySelector("#craving-input"),
   avoid: document.querySelector("#avoid-input"),
   diet: document.querySelector("#diet-input"),
   mealType: document.querySelector("#meal-type-input"),
@@ -68,20 +66,6 @@ const els = {
   libraryList: document.querySelector("#library-list"),
   dictateButton: document.querySelector("#dictate-button"),
   voiceStatus: document.querySelector("#voice-status"),
-  voiceNote: document.querySelector("#voice-note-input"),
-  parseVoiceButton: document.querySelector("#parse-voice-button"),
-  clearVoiceButton: document.querySelector("#clear-voice-button"),
-  voiceReviewPanel: document.querySelector("#voice-review-panel"),
-  voiceReviewStatus: document.querySelector("#voice-review-status"),
-  voiceIngredients: document.querySelector("#voice-ingredients-input"),
-  voiceCraving: document.querySelector("#voice-craving-input"),
-  voiceAvoid: document.querySelector("#voice-avoid-input"),
-  voiceDiet: document.querySelector("#voice-diet-input"),
-  voiceMealType: document.querySelector("#voice-meal-type-input"),
-  voiceServings: document.querySelector("#voice-servings-input"),
-  voiceMaxTotalTimeMinutes: document.querySelector("#voice-time-input"),
-  voiceCuisineOrFlavor: document.querySelector("#voice-cuisine-input"),
-  voiceEquipment: Array.from(document.querySelectorAll("input[name='voiceEquipment']")),
   clearResultsButton: document.querySelector("#clear-results-button"),
   clearLibraryButton: document.querySelector("#clear-library-button"),
   feedbackSummary: document.querySelector("#feedback-summary"),
@@ -96,7 +80,6 @@ let activeProposals = [];
 let generationInFlight = false;
 let lastSubmittedPayload = null;
 let currentRecipeSettings = readRecipeSettings();
-let voiceReviewActive = false;
 let voiceRecorder = null;
 let voiceRecorderStream = null;
 let voiceRecorderChunks = [];
@@ -542,62 +525,16 @@ function setGenerating(isGenerating) {
   els.form.setAttribute("aria-busy", String(isGenerating));
   els.proposalGrid.setAttribute("aria-busy", String(isGenerating));
   els.generateButton.disabled = isGenerating;
-  els.generateButton.textContent = isGenerating ? "Generating..." : "Get three meal ideas";
+  els.generateButton.textContent = isGenerating ? "Generating..." : "Get ideas";
   els.retryButton.disabled = isGenerating || !lastSubmittedPayload;
   els.tryMoreButton.disabled = isGenerating || !activeProposals.length || !lastSubmittedPayload;
-}
-
-function voiceReviewFieldValues() {
-  return {
-    ingredientsText: els.voiceIngredients.value,
-    craving: els.voiceCraving.value,
-    avoid: els.voiceAvoid.value,
-    diet: els.voiceDiet.value,
-    mealType: els.voiceMealType.value,
-    servings: els.voiceServings.value,
-    maxTotalTimeMinutes: els.voiceMaxTotalTimeMinutes.value,
-    cuisineOrFlavor: els.voiceCuisineOrFlavor.value,
-    equipment: els.voiceEquipment.filter((input) => input.checked).map((input) => input.value),
-  };
-}
-
-function voiceConstraintOverrides() {
-  const values = voiceReviewFieldValues();
-  const overrides = {};
-
-  for (const field of ["avoid", "diet", "mealType", "servings", "maxTotalTimeMinutes", "cuisineOrFlavor"]) {
-    if (cleanText(values[field])) {
-      overrides[field] = values[field];
-    }
+  if (!voiceRecordingActive) {
+    els.dictateButton.disabled = isGenerating || voiceTranscriptionActive || !voiceRecorderSupported;
   }
-  if (values.equipment.length) {
-    overrides.equipment = values.equipment;
-  }
-
-  return overrides;
 }
 
 function buildCurrentRecipePayload() {
-  if (voiceReviewActive) {
-    const voiceValues = voiceReviewFieldValues();
-
-    return buildRecipeRequestPayload(
-      {
-        ingredientsText: voiceValues.ingredientsText,
-        craving: voiceValues.craving,
-        ...voiceConstraintOverrides(),
-      },
-      currentRecipeSettings,
-    );
-  }
-
-  return buildRecipeRequestPayload(
-    {
-      ingredientsText: els.ingredients.value,
-      craving: els.craving.value,
-    },
-    currentRecipeSettings,
-  );
+  return buildRecipeRequestPayloadFromNaturalText(els.ingredients.value, currentRecipeSettings);
 }
 
 function buildRegenerationPayload(payload, proposals) {
@@ -696,7 +633,7 @@ function renderProposals(proposals) {
     els.proposalGrid.innerHTML = `
       <article class="empty-state">
         <h3>Ready when you are.</h3>
-        <p>Add ingredients to generate three starter recipes.</p>
+        <p>Add ingredients and a craving to generate three starter recipes.</p>
       </article>
     `;
     setTryMoreVisible(false);
@@ -842,73 +779,9 @@ function setSettingsStatus(message, tone = "neutral") {
   els.settingsStatus.dataset.tone = tone;
 }
 
-function setVoiceReviewStatus(message, tone = "neutral") {
-  els.voiceReviewStatus.textContent = message;
-  els.voiceReviewStatus.dataset.tone = tone;
-}
-
 function setVoiceStatus(message) {
   els.voiceStatus.textContent = message;
   els.voiceStatus.hidden = !message;
-}
-
-function parseVoiceNote() {
-  const parsed = parseVoiceNoteTranscript(els.voiceNote.value);
-
-  applyVoiceParse(parsed);
-}
-
-function applyVoiceParse(parsed) {
-  const constraints = parsed.constraints || {};
-
-  voiceReviewActive = true;
-  els.voiceReviewPanel.hidden = false;
-  els.voiceIngredients.value = parsed.ingredientsText || "";
-  els.voiceCraving.value = parsed.craving || "";
-  els.voiceAvoid.value = constraints.avoid || "";
-  els.voiceDiet.value = constraints.diet || "";
-  els.voiceMealType.value = constraints.mealType || "";
-  els.voiceServings.value = constraints.servings ? String(constraints.servings) : "";
-  els.voiceMaxTotalTimeMinutes.value = constraints.maxTotalTimeMinutes ? String(constraints.maxTotalTimeMinutes) : "";
-  els.voiceCuisineOrFlavor.value = constraints.cuisineOrFlavor || "";
-  for (const input of els.voiceEquipment) {
-    input.checked = Array.isArray(constraints.equipment) && constraints.equipment.includes(input.value);
-  }
-  syncVoiceReviewToPrimaryFields();
-
-  if (parsed.ingredientsText) {
-    setVoiceReviewStatus("Parsed fields are ready. Edit them here before generating.", "success");
-  } else {
-    setVoiceReviewStatus("Add available items to the parsed fields before generating.", "error");
-  }
-}
-
-function syncVoiceReviewToPrimaryFields() {
-  if (!voiceReviewActive) {
-    return;
-  }
-
-  els.ingredients.value = els.voiceIngredients.value;
-  els.craving.value = els.voiceCraving.value;
-}
-
-function clearVoiceNote() {
-  voiceReviewActive = false;
-  els.voiceNote.value = "";
-  els.voiceReviewPanel.hidden = true;
-  els.voiceIngredients.value = "";
-  els.voiceCraving.value = "";
-  els.voiceAvoid.value = "";
-  els.voiceDiet.value = "";
-  els.voiceMealType.value = "";
-  els.voiceServings.value = "";
-  els.voiceMaxTotalTimeMinutes.value = "";
-  els.voiceCuisineOrFlavor.value = "";
-  for (const input of els.voiceEquipment) {
-    input.checked = false;
-  }
-  setVoiceReviewStatus("", "neutral");
-  setVoiceStatus(voiceRecorderSupported ? "" : "In-app recording is unavailable here. Paste a transcript below.");
 }
 
 function settingsFieldValues() {
@@ -996,19 +869,19 @@ function setupVoiceInput() {
   voiceRecorderSupported = Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
 
   if (!voiceRecorderSupported) {
-    setVoiceStatus("In-app recording is unavailable here. Paste a transcript below.");
+    setVoiceStatus("In-app recording is unavailable here. Type or paste the request above.");
     els.dictateButton.disabled = true;
-    els.dictateButton.textContent = "Recording unavailable";
+    els.dictateButton.textContent = "Talk unavailable";
     return;
   }
 
-  els.dictateButton.textContent = "Record voice note";
+  els.dictateButton.textContent = "Talk and get ideas";
   setVoiceStatus("");
 }
 
 async function startVoiceRecording() {
   if (!voiceRecorderSupported || voiceTranscriptionActive) {
-    setVoiceStatus("In-app recording is unavailable here. Paste a transcript below.");
+    setVoiceStatus("In-app recording is unavailable here. Type or paste the request above.");
     return;
   }
 
@@ -1038,7 +911,7 @@ async function startVoiceRecording() {
     voiceRecorder.addEventListener("error", () => {
       stopVoiceRecorderStream();
       resetVoiceRecorderButton();
-      setVoiceStatus("Recording failed. Try again or paste a transcript below.");
+      setVoiceStatus("Recording failed. Try again or type the request above.");
     });
 
     voiceRecorder.start();
@@ -1057,8 +930,8 @@ async function startVoiceRecording() {
     resetVoiceRecorderButton();
     setVoiceStatus(
       microphonePermissionWasBlocked(error)
-        ? "Microphone permission was blocked. Allow microphone access or paste a transcript below."
-        : "Cookooi could not start recording. Check the microphone or paste a transcript below.",
+        ? "Microphone permission was blocked. Allow microphone access or type the request above."
+        : "Cookooi could not start recording. Check the microphone or type the request above.",
     );
   }
 }
@@ -1088,7 +961,7 @@ async function finishVoiceRecording() {
 
   if (!audioBlob.size) {
     resetVoiceRecorderButton();
-    setVoiceStatus("No audio was captured. Try again or paste a transcript below.");
+    setVoiceStatus("No audio was captured. Try again or type the request above.");
     return;
   }
 
@@ -1099,9 +972,16 @@ async function finishVoiceRecording() {
 
   try {
     const result = await transcribeVoiceBlob({ blob: audioBlob, sessionId });
-    els.voiceNote.value = [els.voiceNote.value.trim(), result.transcript].filter(Boolean).join(" ");
-    parseVoiceNote();
-    setVoiceStatus("Transcript ready. Review the parsed fields before generating.");
+    els.ingredients.value = [els.ingredients.value.trim(), result.transcript].filter(Boolean).join(" ");
+    const payload = buildCurrentRecipePayload();
+    if (!cleanText(payload.ingredientsText)) {
+      setVoiceStatus("Transcript added. Add available items before getting ideas.");
+      return;
+    }
+
+    lastSubmittedPayload = payload;
+    setVoiceStatus("Transcript added to Ingredients and craving.");
+    await runGeneration(payload, "Generating ideas from your voice note...");
   } catch (error) {
     setVoiceStatus(error.message);
   } finally {
@@ -1122,7 +1002,7 @@ function stopVoiceRecorderStream() {
 
 function resetVoiceRecorderButton() {
   els.dictateButton.disabled = !voiceRecorderSupported;
-  els.dictateButton.textContent = voiceRecorderSupported ? "Record voice note" : "Recording unavailable";
+  els.dictateButton.textContent = voiceRecorderSupported ? "Talk and get ideas" : "Talk unavailable";
 }
 
 els.form.addEventListener("submit", async (event) => {
@@ -1163,13 +1043,6 @@ els.dictateButton.addEventListener("click", async () => {
 
   await startVoiceRecording();
 });
-
-els.parseVoiceButton.addEventListener("click", parseVoiceNote);
-
-els.clearVoiceButton.addEventListener("click", clearVoiceNote);
-
-els.voiceIngredients.addEventListener("input", syncVoiceReviewToPrimaryFields);
-els.voiceCraving.addEventListener("input", syncVoiceReviewToPrimaryFields);
 
 els.settingsToggleButton.addEventListener("click", () => {
   const isExpanded = els.settingsToggleButton.getAttribute("aria-expanded") === "true";
