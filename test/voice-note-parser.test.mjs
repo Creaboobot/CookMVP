@@ -34,6 +34,35 @@ test("keeps craving optional when voice note only includes items and context", (
   });
 });
 
+test("parses plain combined input into available items and craving", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "eggs, spinach, feta, leftover rice, lemon. Something quick and savory.",
+  );
+
+  assert.deepEqual(parsed, {
+    ingredientsText: "eggs, spinach, feta, leftover rice, lemon",
+    craving: "Something quick and savory",
+    constraints: {},
+  });
+});
+
+test("parses constraints from one combined typed request", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "eggs, spinach, feta, leftover rice, lemon. Something quick and savory. No peanuts, stovetop only, for two under 30 minutes.",
+  );
+
+  assert.deepEqual(parsed, {
+    ingredientsText: "eggs, spinach, feta, leftover rice, lemon",
+    craving: "Something quick and savory",
+    constraints: {
+      avoid: "peanuts",
+      servings: 2,
+      maxTotalTimeMinutes: 30,
+      equipment: ["stovetop"],
+    },
+  });
+});
+
 test("stops avoidances before equipment-only cues", () => {
   const parsed = parseVoiceNoteTranscript(
     "I have potatoes, bacon, kale, and cheddar. Make dinner for three in 30 minutes, no peanuts, stovetop only.",
@@ -68,6 +97,33 @@ test("keeps sentence-separated equipment cues out of parsed avoidances", () => {
 
   assert.equal(parsed.constraints.avoid, "peanuts");
   assert.deepEqual(parsed.constraints.equipment, ["stovetop"]);
+});
+
+test("keeps comma-separated equipment and timing cues out of available items", () => {
+  const parsed = parseVoiceNoteTranscript("eggs, spinach, feta, stovetop only, for two under 30 minutes");
+
+  assert.equal(parsed.ingredientsText, "eggs, spinach, feta");
+  assert.equal(parsed.craving, "");
+  assert.deepEqual(parsed.constraints, {
+    servings: 2,
+    maxTotalTimeMinutes: 30,
+    equipment: ["stovetop"],
+  });
+});
+
+test("keeps no-punctuation constraints out of ingredients and avoidances", () => {
+  const parsed = parseVoiceNoteTranscript(
+    "I have eggs, spinach, feta and want something quick no peanuts stovetop only for two under 30 minutes",
+  );
+
+  assert.equal(parsed.ingredientsText, "eggs, spinach, feta");
+  assert.equal(parsed.craving, "something quick");
+  assert.deepEqual(parsed.constraints, {
+    avoid: "peanuts",
+    servings: 2,
+    maxTotalTimeMinutes: 30,
+    equipment: ["stovetop"],
+  });
 });
 
 test("does not send equipment transcript tail text as a request avoidance", () => {

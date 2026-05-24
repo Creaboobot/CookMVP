@@ -66,7 +66,7 @@ export async function transcribeVoiceBlob({
   } catch {
     throw voiceTranscriptionError(
       "network_error",
-      "Cookooi could not reach voice transcription. Keep or edit the transcript text and try again.",
+      "Cookooi could not reach voice transcription. Keep or edit the request text and try again.",
       true,
     );
   }
@@ -84,7 +84,7 @@ export async function transcribeVoiceBlob({
   if (!transcript) {
     throw voiceTranscriptionError(
       "empty_transcript",
-      "Cookooi could not read a transcript from this note. Try a shorter note or paste text below.",
+      "Cookooi could not read a transcript from this note. Try a shorter note or type the request instead.",
       true,
     );
   }
@@ -105,11 +105,11 @@ function friendlyTranscriptionMessage(body, status) {
     empty_audio: body.message,
     audio_too_large: body.message,
     unsupported_audio: body.message,
-    provider_unavailable: "Voice transcription is not configured yet. Use the text transcript field for now.",
+    provider_unavailable: "Voice transcription is not configured yet. Type the request instead.",
     provider_rate_limited: "Cookooi is handling a lot of voice notes. Please retry shortly.",
     provider_timeout: "Voice transcription took too long. Try again with a shorter note.",
-    provider_error: "Cookooi could not transcribe this note right now. Use the text transcript field or try again.",
-    invalid_ai_output: "Cookooi could not read a transcript from this note. Try again or paste text below.",
+    provider_error: "Cookooi could not transcribe this note right now. Type the request or try again.",
+    invalid_ai_output: "Cookooi could not read a transcript from this note. Try again or type the request instead.",
     rate_limited: body.message,
   };
 
@@ -117,7 +117,7 @@ function friendlyTranscriptionMessage(body, status) {
     messages[body.error] ||
     body.message ||
     (status >= 500
-      ? "Cookooi could not transcribe this note right now. Use the text transcript field or try again."
+      ? "Cookooi could not transcribe this note right now. Type the request or try again."
       : "Check the voice note and try again.")
   );
 }

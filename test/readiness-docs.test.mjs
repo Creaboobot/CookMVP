@@ -48,7 +48,7 @@ test("documents server-side voice transcription boundaries", async () => {
   assert.match(readme, /gpt-4o-mini-transcribe/);
   assert.match(readme, /does not persist raw audio/);
   assert.match(readme, /MediaRecorder/);
-  assert.match(readme, /transcript field remains available/);
+  assert.match(readme, /combined field remains available/);
   assert.match(readme, /mobile-voice-validation\.md/);
   assert.match(contract, /Voice Transcription API/);
   assert.match(contract, /multipart\/form-data/);

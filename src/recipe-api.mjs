@@ -426,7 +426,7 @@ export async function handleTranscribeVoiceRequest(request, env = {}, options = 
     return jsonResponse(
       {
         error: "provider_unavailable",
-        message: "Voice transcription is not configured yet. Use the text transcript field for now.",
+        message: "Voice transcription is not configured yet. Type the request in Ingredients and craving for now.",
       },
       503,
     );
@@ -1493,14 +1493,14 @@ function classifyTranscriptionProviderError(error) {
     return {
       status: 503,
       code: "provider_unavailable",
-      message: "Voice transcription is temporarily unavailable. Use the text transcript field or try again later.",
+      message: "Voice transcription is temporarily unavailable. Type the request in Ingredients and craving or try again later.",
     };
   }
 
   return {
     status: 502,
     code: "provider_error",
-    message: "Cookooi could not transcribe this voice note right now. Use the text transcript field or try again.",
+    message: "Cookooi could not transcribe this voice note right now. Type the request in Ingredients and craving or try again.",
   };
 }
 

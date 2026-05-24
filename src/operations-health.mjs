@@ -44,7 +44,7 @@ export function createOperationsHealth(env = {}, options = {}) {
       model: transcriptionModel,
       detail: hasOpenAiKey
         ? "Voice transcription can call the configured server-side OpenAI key."
-        : "Voice transcription needs OPENAI_API_KEY; testers can still paste text in the transcript field.",
+        : "Voice transcription needs OPENAI_API_KEY; testers can still type or paste text in the combined request field.",
     },
     feedback_capture: {
       status: "ready",

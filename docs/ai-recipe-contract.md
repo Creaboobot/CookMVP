@@ -52,7 +52,7 @@ The browser must send user input to the Cookooi server only. The browser must ne
 
 ## Voice Note Input
 
-The browser offers a one-note input mode that lets the user record or paste available items, optional craving, and constraints in natural language. Where `MediaRecorder` and microphone permission are available, Cookooi records a short in-app audio note, uploads it to `/api/voice/transcribe`, places the returned transcript in the editable transcript field, and then runs the same parser used by pasted transcripts. The MVP voice parser converts the transcript into the request fields above, shows the parsed interpretation for user review, and then sends only the structured request payload to `/api/recipes/generate`.
+The browser offers a single natural-language `Ingredients and craving` field for typed, pasted, and spoken requests. Where `MediaRecorder` and microphone permission are available, Cookooi records a short in-app audio note, uploads it to `/api/voice/transcribe`, places the returned transcript in that same field, and then runs the same parser used by typed requests. The MVP parser converts the field into the request fields above and sends only the structured request payload to `/api/recipes/generate`.
 
 Voice-derived fields have higher priority than saved Settings defaults for the current request. The raw transcript must not be included in generation analytics, saved recipes, or exported session JSON by default.
 
@@ -65,7 +65,7 @@ POST /api/voice/transcribe
 Content-Type: multipart/form-data
 ```
 
-The browser uploads one recorded audio blob as `audio`; `file` is accepted as a compatibility field. The browser must never call OpenAI directly and must never receive an API key. The endpoint is independent from recipe generation so the user can review and edit the transcript before parsing or generating meal ideas.
+The browser uploads one recorded audio blob as `audio`; `file` is accepted as a compatibility field. The browser must never call OpenAI directly and must never receive an API key. The endpoint is independent from recipe generation so the user can edit the transcript in the combined request field if generation cannot continue safely.
 
 Supported MVP audio formats should match common browser `MediaRecorder` output and OpenAI transcription input formats where practical:
 
@@ -100,15 +100,15 @@ Successful response:
 }
 ```
 
-The transcript is returned to the browser for user review. It should not be written to feedback/session analytics by default.
+The transcript is returned to the browser field for the current request. It should not be written to feedback/session analytics by default.
 
 Browser UI rules:
 
 - Prefer in-app recording through `navigator.mediaDevices.getUserMedia({ audio: true })` and `MediaRecorder`.
 - Prefer iPhone/Safari-friendly recording types such as `audio/mp4` when supported, with `audio/webm` as a common Chromium fallback.
 - Show record, stop, transcribing, permission-denied, unsupported-browser, recording-failed, and transcription-failed states.
-- Do not clear typed or pasted transcript text when recording or transcription fails.
-- Keep the editable text transcript fallback available for unsupported browsers.
+- Do not clear typed or pasted request text when recording or transcription fails.
+- Keep the editable combined request field available for unsupported browsers.
 
 ## Response Contract
 
