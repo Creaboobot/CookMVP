@@ -264,38 +264,6 @@ h1 {
   padding: 12px 14px;
 }
 
-.voice-note-panel {
-  background: #f8fafc;
-  border: 1px solid #bfdbfe;
-  border-radius: 14px;
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-}
-
-.voice-note-heading {
-  display: grid;
-  gap: 6px;
-}
-
-.voice-note-heading h3,
-.voice-note-heading p,
-.voice-privacy {
-  margin-bottom: 0;
-}
-
-.voice-note-heading p,
-.voice-privacy {
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.voice-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .settings-summary-row {
   align-items: center;
   display: flex;
@@ -866,10 +834,6 @@ h1 {
   .save-button,
   .feedback-rating-button {
     width: 100%;
-  }
-
-  .voice-actions {
-    display: grid;
   }
 
   .result-followup {

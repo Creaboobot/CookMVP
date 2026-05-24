@@ -634,8 +634,8 @@ function renderProposals(proposals) {
   if (!proposals.length) {
     els.proposalGrid.innerHTML = `
       <article class="empty-state">
-        <h3>Ready when you are.</h3>
-        <p>Add ingredients, with an optional craving, to generate three starter recipes.</p>
+        <h3>No ideas yet.</h3>
+        <p>Add ingredients; craving is optional.</p>
       </article>
     `;
     setTryMoreVisible(false);
@@ -721,7 +721,7 @@ function savedRecipeMetaText(entry) {
 
 async function runGeneration(
   payload,
-  statusMessage = "Generating three Cookooi recipe proposals...",
+  statusMessage = "Getting three Cookooi ideas...",
   { preserveProposalsOnError = false } = {},
 ) {
   if (generationInFlight) {
@@ -741,12 +741,12 @@ async function runGeneration(
     if (generation.source === "fallback") {
       setGenerationStatus(
         generation.warning
-          ? `Fallback results shown: ${generation.warning}`
-          : "Fallback results shown because AI generation is unavailable.",
+          ? `Fallback ideas shown: ${generation.warning}`
+          : "Fallback ideas shown because AI generation is unavailable.",
         "warning",
       );
     } else {
-      setGenerationStatus("Three AI-generated recipe proposals are ready. Review safety notes before cooking.", "success");
+      setGenerationStatus("Three ideas are ready. Review safety notes before cooking.", "success");
     }
   } catch (error) {
     recordGenerationFailure({ payload, error, sessionId });

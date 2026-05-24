@@ -2,15 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("shows concise privacy, AI, and safety disclosure before generation", async () => {
+test("shows concise privacy, AI, and safety disclosure on the first screen", async () => {
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 
-  assert.match(html, /AI-generated recipe proposals/);
-  assert.match(html, /processes the request you type or say and saved baseline settings/);
-  assert.match(html, /Do not enter sensitive personal information/);
+  assert.match(html, /Before you cook/);
+  assert.match(html, /Recipes are AI-generated unless labeled fallback/);
+  assert.match(html, /Do not enter sensitive personal\s+information/);
   assert.match(html, /allergies, freshness, and cooking safety/);
-  assert.match(html, /Saved recipes and test-session data stay in this browser/);
-  assert.match(html, /does not store raw ingredients, cravings, follow-up questions/);
+  assert.match(html, /Saved recipes and session data stay in this browser/);
+  assert.match(html, /Audio is sent only for\s+transcription/);
+  assert.match(html, /session analytics avoid raw request text/);
+  assert.doesNotMatch(html, /AI-generated recipe proposals/);
+  assert.doesNotMatch(html, /processes the request you type or say and saved baseline settings/);
   assert.match(html, /Session data export/);
 });
 
@@ -53,18 +56,23 @@ test("uses one combined input for typed and spoken requests without storing raw 
   const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
   const script = await readFile(new URL("../public/recipe.js", import.meta.url), "utf8");
   const feedbackStore = await readFile(new URL("../public/feedback-store.js", import.meta.url), "utf8");
+  const talkIndex = html.indexOf('id="dictate-button"');
+  const generateIndex = html.indexOf('id="generate-button"');
 
   assert.match(html, /Ingredients and craving/);
-  assert.match(html, /Add ingredients, with an optional craving, to generate three starter recipes/);
-  assert.match(script, /Add ingredients, with an optional craving, to generate three starter recipes/);
+  assert.match(html, /Add ingredients; craving is optional/);
+  assert.match(script, /Add ingredients; craving is optional/);
+  assert.ok(talkIndex > -1);
+  assert.ok(generateIndex > talkIndex);
   assert.doesNotMatch(html, /Add ingredients and a craving to generate three starter recipes/);
   assert.doesNotMatch(script, /Add ingredients and a craving to generate three starter recipes/);
+  assert.doesNotMatch(html, /Voice note/);
+  assert.doesNotMatch(html, /Talk into the same request/);
   assert.doesNotMatch(html, /id="craving-input"/);
   assert.doesNotMatch(html, /id="voice-note-input"/);
   assert.doesNotMatch(html, /id="voice-review-panel"/);
   assert.match(html, /Talk and get ideas/);
-  assert.match(html, /Audio is sent only for transcription/);
-  assert.match(html, /raw\s+transcript is used only in this request field/);
+  assert.match(html, /Audio is sent only for\s+transcription/);
   assert.match(script, /buildRecipeRequestPayloadFromNaturalText/);
   assert.doesNotMatch(script, /voiceConstraintOverrides/);
   assert.doesNotMatch(feedbackStore, /transcript/i);
