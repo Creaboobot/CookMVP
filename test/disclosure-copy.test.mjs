@@ -64,6 +64,7 @@ test("uses in-app audio recording with clear text fallback states", async () => 
   assert.match(script, /Stop recording/);
   assert.match(script, /Microphone permission was blocked/);
   assert.match(script, /Paste a transcript below/);
+  assert.doesNotMatch(script, /Ready to record\. Tap Record, then Stop\./);
   assert.doesNotMatch(script, /keyboard microphone/i);
 });
 

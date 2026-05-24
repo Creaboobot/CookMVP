@@ -847,6 +847,11 @@ function setVoiceReviewStatus(message, tone = "neutral") {
   els.voiceReviewStatus.dataset.tone = tone;
 }
 
+function setVoiceStatus(message) {
+  els.voiceStatus.textContent = message;
+  els.voiceStatus.hidden = !message;
+}
+
 function parseVoiceNote() {
   const parsed = parseVoiceNoteTranscript(els.voiceNote.value);
 
@@ -903,9 +908,7 @@ function clearVoiceNote() {
     input.checked = false;
   }
   setVoiceReviewStatus("", "neutral");
-  els.voiceStatus.textContent = voiceRecorderSupported
-    ? "Ready to record. Tap Record, then Stop."
-    : "In-app recording is unavailable here. Paste a transcript below.";
+  setVoiceStatus(voiceRecorderSupported ? "" : "In-app recording is unavailable here. Paste a transcript below.");
 }
 
 function settingsFieldValues() {
@@ -993,24 +996,24 @@ function setupVoiceInput() {
   voiceRecorderSupported = Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
 
   if (!voiceRecorderSupported) {
-    els.voiceStatus.textContent = "In-app recording is unavailable here. Paste a transcript below.";
+    setVoiceStatus("In-app recording is unavailable here. Paste a transcript below.");
     els.dictateButton.disabled = true;
     els.dictateButton.textContent = "Recording unavailable";
     return;
   }
 
   els.dictateButton.textContent = "Record voice note";
-  els.voiceStatus.textContent = "Ready to record. Tap Record, then Stop.";
+  setVoiceStatus("");
 }
 
 async function startVoiceRecording() {
   if (!voiceRecorderSupported || voiceTranscriptionActive) {
-    els.voiceStatus.textContent = "In-app recording is unavailable here. Paste a transcript below.";
+    setVoiceStatus("In-app recording is unavailable here. Paste a transcript below.");
     return;
   }
 
   els.dictateButton.disabled = true;
-  els.voiceStatus.textContent = "Requesting microphone permission...";
+  setVoiceStatus("Requesting microphone permission...");
 
   try {
     voiceRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1035,26 +1038,28 @@ async function startVoiceRecording() {
     voiceRecorder.addEventListener("error", () => {
       stopVoiceRecorderStream();
       resetVoiceRecorderButton();
-      els.voiceStatus.textContent = "Recording failed. Try again or paste a transcript below.";
+      setVoiceStatus("Recording failed. Try again or paste a transcript below.");
     });
 
     voiceRecorder.start();
     voiceRecordingActive = true;
     els.dictateButton.disabled = false;
     els.dictateButton.textContent = "Stop recording";
-    els.voiceStatus.textContent = "Recording short voice note...";
+    setVoiceStatus("Recording short voice note...");
     voiceRecordingStopTimer = window.setTimeout(() => {
       if (voiceRecordingActive) {
-        els.voiceStatus.textContent = "One-minute voice note limit reached. Transcribing now...";
+        setVoiceStatus("One-minute voice note limit reached. Transcribing now...");
         stopVoiceRecording();
       }
     }, maxVoiceRecordingMs);
   } catch (error) {
     stopVoiceRecorderStream();
     resetVoiceRecorderButton();
-    els.voiceStatus.textContent = microphonePermissionWasBlocked(error)
-      ? "Microphone permission was blocked. Allow microphone access or paste a transcript below."
-      : "Cookooi could not start recording. Check the microphone or paste a transcript below.";
+    setVoiceStatus(
+      microphonePermissionWasBlocked(error)
+        ? "Microphone permission was blocked. Allow microphone access or paste a transcript below."
+        : "Cookooi could not start recording. Check the microphone or paste a transcript below.",
+    );
   }
 }
 
@@ -1065,7 +1070,7 @@ function stopVoiceRecording() {
 
   els.dictateButton.disabled = true;
   els.dictateButton.textContent = "Preparing...";
-  els.voiceStatus.textContent = "Preparing voice note for transcription...";
+  setVoiceStatus("Preparing voice note for transcription...");
   voiceRecorder.stop();
 }
 
@@ -1083,22 +1088,22 @@ async function finishVoiceRecording() {
 
   if (!audioBlob.size) {
     resetVoiceRecorderButton();
-    els.voiceStatus.textContent = "No audio was captured. Try again or paste a transcript below.";
+    setVoiceStatus("No audio was captured. Try again or paste a transcript below.");
     return;
   }
 
   voiceTranscriptionActive = true;
   els.dictateButton.disabled = true;
   els.dictateButton.textContent = "Transcribing...";
-  els.voiceStatus.textContent = "Transcribing voice note...";
+  setVoiceStatus("Transcribing voice note...");
 
   try {
     const result = await transcribeVoiceBlob({ blob: audioBlob, sessionId });
     els.voiceNote.value = [els.voiceNote.value.trim(), result.transcript].filter(Boolean).join(" ");
     parseVoiceNote();
-    els.voiceStatus.textContent = "Transcript ready. Review the parsed fields before generating.";
+    setVoiceStatus("Transcript ready. Review the parsed fields before generating.");
   } catch (error) {
-    els.voiceStatus.textContent = error.message;
+    setVoiceStatus(error.message);
   } finally {
     voiceTranscriptionActive = false;
     resetVoiceRecorderButton();
