@@ -66,6 +66,20 @@ Before inviting testers, record these checks in the test handoff or support note
 | Feedback capture | Rate a proposal, add optional note, export session JSON | Export includes feedback metadata, saved markers, and no raw ingredients, craving, avoidances, voice transcript, or raw follow-up question in analytics records. |
 | Privacy-safe logging | Inspect console, local terminal, and any support note | Use event categories, status codes, counts, lengths, route names, and provider state. Do not log raw ingredients, prompts, transcripts, avoidances, allergy text, private notes, or full feedback notes. |
 
+## Simplified Get-Ideas Flow Smoke
+
+Run this pass after UI copy, voice input, settings, or proposal rendering changes:
+
+1. Load the target route and confirm the first screen shows one `Ingredients and craving` field, `Talk and get ideas`, `Get ideas`, compact `Settings`, and the compact `Before you cook` disclosure.
+2. Open Settings, save at least one baseline preference, and confirm the first screen remains focused on the combined request field.
+3. Enter a realistic combined request such as `eggs, spinach, feta, leftover rice, lemon. Something quick and savory. No peanuts, stovetop only, for two under 30 minutes.` and click `Get ideas`.
+4. Confirm exactly three proposals render, proposal copy is concise, fallback or AI source labels are visible, and the request payload keeps parsed constraints plus saved baseline settings.
+5. Click `Try three more` and confirm exactly three replacement proposals render without re-entering the request.
+6. Open one proposal, ask one meal follow-up, and confirm the answer renders inside that proposal without replacing the original recipe.
+7. Save one proposal, add one rating, and confirm session data counts generation, follow-up, feedback, and saved-recipe metadata without raw request or raw follow-up text.
+8. At desktop width and about 390px mobile width, confirm there are no console errors, horizontal overflow, duplicate input fields, or stale pre-simplification copy.
+9. For voice, use `Talk and get ideas` where microphone automation is available. If local/headless permission is blocked, record the fallback status and confirm the combined field remains usable.
+
 ## Rate Limits And Cost Controls
 
 Current anonymous API limits default to:
