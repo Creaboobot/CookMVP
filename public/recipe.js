@@ -52,7 +52,8 @@ const els = {
   cuisineOrFlavor: document.querySelector("#cuisine-input"),
   equipment: Array.from(document.querySelectorAll("input[name='equipment']")),
   settingsToggleButton: document.querySelector("#settings-toggle-button"),
-  settingsFields: document.querySelector("#settings-fields"),
+  settingsDialog: document.querySelector("#settings-dialog"),
+  settingsCloseButton: document.querySelector("#settings-close-button"),
   settingsSummary: document.querySelector("#settings-summary"),
   settingsStatus: document.querySelector("#settings-status"),
   saveSettingsButton: document.querySelector("#save-settings-button"),
@@ -88,6 +89,7 @@ let voiceRecordingStopTimer = null;
 let voiceRecorderSupported = false;
 let voiceRecordingActive = false;
 let voiceTranscriptionActive = false;
+let restoreSettingsFocusOnClose = false;
 const sessionId = getSessionId();
 
 function listItems(container, items, emptyText) {
@@ -822,6 +824,39 @@ function renderSettingsSummary() {
   els.settingsSummary.textContent = parts.join(" - ");
 }
 
+function openSettingsDialog() {
+  applySettingsToFields(currentRecipeSettings);
+  els.settingsToggleButton.setAttribute("aria-expanded", "true");
+
+  if (typeof els.settingsDialog.showModal === "function") {
+    els.settingsDialog.showModal();
+  } else {
+    els.settingsDialog.setAttribute("open", "");
+  }
+
+  els.avoid.focus();
+}
+
+function closeSettingsDialog({ restoreFocus = true } = {}) {
+  restoreSettingsFocusOnClose = restoreFocus;
+
+  if (els.settingsDialog.open && typeof els.settingsDialog.close === "function") {
+    els.settingsDialog.close();
+    return;
+  }
+
+  els.settingsDialog.removeAttribute("open");
+  syncSettingsDialogClosed();
+}
+
+function syncSettingsDialogClosed() {
+  els.settingsToggleButton.setAttribute("aria-expanded", "false");
+  if (restoreSettingsFocusOnClose) {
+    els.settingsToggleButton.focus();
+  }
+  restoreSettingsFocusOnClose = false;
+}
+
 function labelFromValue(value, defaultValue, defaultLabel) {
   return value === defaultValue ? defaultLabel : titleFromValue(value);
 }
@@ -1045,17 +1080,30 @@ els.dictateButton.addEventListener("click", async () => {
 });
 
 els.settingsToggleButton.addEventListener("click", () => {
-  const isExpanded = els.settingsToggleButton.getAttribute("aria-expanded") === "true";
-  els.settingsToggleButton.setAttribute("aria-expanded", String(!isExpanded));
-  els.settingsFields.hidden = isExpanded;
+  openSettingsDialog();
+});
+
+els.settingsCloseButton.addEventListener("click", () => {
+  closeSettingsDialog();
+});
+
+els.settingsDialog.addEventListener("close", syncSettingsDialogClosed);
+
+els.settingsDialog.addEventListener("cancel", () => {
+  restoreSettingsFocusOnClose = true;
+});
+
+els.settingsDialog.addEventListener("click", (event) => {
+  if (event.target === els.settingsDialog) {
+    closeSettingsDialog();
+  }
 });
 
 els.saveSettingsButton.addEventListener("click", () => {
   currentRecipeSettings = saveRecipeSettings(settingsFieldValues());
   applySettingsToFields(currentRecipeSettings);
   renderSettingsSummary();
-  els.settingsToggleButton.setAttribute("aria-expanded", "false");
-  els.settingsFields.hidden = true;
+  closeSettingsDialog();
   setSettingsStatus("Settings saved in this browser.", "success");
 });
 
